@@ -3,7 +3,7 @@ import pandas as pd
 import os
 
 
-#let's count how many pixels are classified as what
+# let's count how many pixels are classified as what
 # total_num_pos = 0
 # total_num_cr = 0
 # total_num_streak = 0
@@ -17,8 +17,7 @@ import os
 # folder_path = "/lustre/lrspec/ZTF_data/science_extractions/1020"
 # files = [f for f in os.listdir(folder_path) if f.endswith('extraction_predsarray_1_predsarray.npy') or f.endswith('extraction_predsarray_2_predsarray.npy')or f.endswith('extraction_predsarray_3_predsarray.npy') or f.endswith('extraction_predsarray_4_predsarray.npy')]  # Adjust this to your file format
 
-    
-    
+
 # for file in files:
 #     image_filename = os.fsdecode(file)
 #     filename_start = image_filename[:40]
@@ -34,7 +33,7 @@ import os
 #     pimg_cr = predsarray[:,3]
 
 #     pimg_both = pimg_pos+pimg_neg
-    
+
 #     num_pos = np.sum(pimg_pos > abst_thr)
 #     num_cr = np.sum(pimg_cr > abst_thr)
 #     num_streak = np.sum(pimg_streak > abst_thr)
@@ -58,11 +57,11 @@ import os
 #     del pimg_streak
 #     del predsarray
 #     gc.collect()
-    
+
 # np.save('/lustre/lrspec/ZTF_data/science_extractions/1020/numbers_predsarrays.npy',[total_num_pos,total_num_cr,total_num_streak,total_num_bg,total_num_neg,total_num_both,total_num_leftover])
-        
-        
-folder_path = '/lustre/lrspec/ZTF_data/science_extractions/1020'
+
+
+folder_path = "/lustre/lrspec/ZTF_data/science_extractions/1020"
 
 # #let's count how many pixels are classified as what
 # total_num_pos2 = 0
@@ -78,13 +77,13 @@ folder_path = '/lustre/lrspec/ZTF_data/science_extractions/1020'
 #     num_pos = len(df[df['type'] == 'pos'])
 #     num_neg = len(df[df['type'] == 'neg'])
 #     num_both = len(df[df['type'] == 'both'])
-    
+
 #     total_num_pos2 +=num_pos
 #     total_num_cr2 +=num_cr
 #     total_num_neg2 +=num_neg
 #     total_num_both2 +=num_both
-    
-    
+
+
 # np.save('/lustre/lrspec/ZTF_data/science_extractions/1020/numbers_alllist.npy',[total_num_pos2,total_num_cr2,total_num_neg2,total_num_both2])
 
 # files = [f for f in os.listdir(folder_path) if f.endswith('alllist_reduced')]  # Adjust this to your file format
@@ -100,14 +99,16 @@ folder_path = '/lustre/lrspec/ZTF_data/science_extractions/1020'
 #     num_pos = len(df[df['type'] == 'pos'])
 #     num_neg = len(df[df['type'] == 'neg'])
 #     num_both = len(df[df['type'] == 'both'])
-    
+
 #     total_num_pos3 +=num_pos
 #     total_num_neg3 +=num_neg
 #     total_num_both3 +=num_both
-    
+
 # np.save('/lustre/lrspec/ZTF_data/science_extractions/1020/numbers_reduced.npy',[total_num_pos3,total_num_neg3,total_num_both3])
 
-files = [f for f in os.listdir(folder_path) if f.endswith('_snr')]  # Adjust this to your file format
+files = [
+    f for f in os.listdir(folder_path) if f.endswith("_snr")
+]  # Adjust this to your file format
 
 total_num_pos4 = 0
 total_num_both4 = 0
@@ -115,14 +116,16 @@ total_num_neg4 = 0
 
 # Read and process each DataFrame file
 for f in files:
-
     df = pd.read_csv(os.path.join(folder_path, f))
-    num_pos = len(df[df['type'] == 'pos'])
-    num_neg = len(df[df['type'] == 'neg'])
-    num_both = len(df[df['type'] == 'both'])
-    
-    total_num_pos4 +=num_pos
-    total_num_neg4 +=num_neg
-    total_num_both4 +=num_both
-    
-np.save('/lustre/lrspec/ZTF_data/science_extractions/1020/numbers_reducedsobelwsnr.npy',[total_num_pos4,total_num_neg4,total_num_both4])
+    num_pos = len(df[df["type"] == "pos"])
+    num_neg = len(df[df["type"] == "neg"])
+    num_both = len(df[df["type"] == "both"])
+
+    total_num_pos4 += num_pos
+    total_num_neg4 += num_neg
+    total_num_both4 += num_both
+
+np.save(
+    "/lustre/lrspec/ZTF_data/science_extractions/1020/numbers_reducedsobelwsnr.npy",
+    [total_num_pos4, total_num_neg4, total_num_both4],
+)
