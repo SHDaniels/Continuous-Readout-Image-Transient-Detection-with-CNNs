@@ -32,23 +32,12 @@ plt.rcParams["image.interpolation"] = "nearest"
 plt.rcParams["image.cmap"] = "gist_gray"
 
 
-# In[ ]:
 
-
-#i guess we can look at the training data? maybe
-#just the 1020 ones? or idk maybe both
-#but then we definitely also want the science ones
-#i guess i could save them all together
-
-
-# In[5]:
 
 
 #training data
 training_path = '/lustre/lrspec/ZTF_data/training_aug24/implant_train'
-all_data_path = '/lustre/lrspec/ZTF_data/2022/1020'
-inference_path = '/lustre/lrspec/ZTF_data/science_extractions/to_extract/1020_minus_extras'
-
+all_data_path = '/lustre/lrspec/ZTF_data/2022/1017'
 
 # In[17]:
 
@@ -56,7 +45,7 @@ inference_path = '/lustre/lrspec/ZTF_data/science_extractions/to_extract/1020_mi
 training_filenames = []
 
 files = [
-    f for f in os.listdir(training_path) if f.startswith("ztf_20221020")
+    f for f in os.listdir(training_path) if f.startswith("ztf_20221017")
 ]  # Adjust this to your file format
 for file in files:
     image_filename = os.fsdecode(file)
@@ -90,25 +79,10 @@ scp shard@darwin.hpc.udel.edu:/lustre/lrspec/ZTF_data/2022/1020/ztf_202210201382
 
 
 for name in training_filenames:
-    file = '/lustre/lrspec/ZTF_data/2022/1020/'+name+'.fits.fz'
+    file = all_data_path+'/'+name+'.fits.fz'
     print(file)
 
 
-# In[22]:
-
-
-# for name in training_filenames:
-#     file = '/lustre/lrspec/ZTF_data/2022/1020/'+name+'.fits.fz'
-#     print(file)
-#     hdul = fits.open(file)
-#     for i in range(1,5):
-#         plt.imshow(np.sqrt(hdul[i].data))
-#         plt.title(name)
-#         plt.show()
-# #they all look legit and not messed up
-
-
-# In[ ]:
 
 
 #we can calculate the xylists here probs
@@ -167,35 +141,6 @@ def get_diffs(array, quad):
     return diffs
 
 
-# In[26]:
-
-
-# for name in training_filenames:
-#     file = '/lustre/lrspec/ZTF_data/2022/1020/'+name+'.fits.fz'
-#     print(file)
-#     hdul_start = fits.open(file)
-#     for quad in range(1,5):
-#         array = hdul_start[quad].data
-#         break
-#     break
-# plt.imshow(array)
-# # plt.scatter(np.array(diffs)[:,0], np.array(diffs)[:,1])
-
-
-# In[27]:
-
-
-# diffs = get_diffs(array,quad)
-
-
-# In[29]:
-
-
-# plt.scatter(np.array(diffs)[:,0], np.array(diffs)[:,1])
-# plt.imshow(np.sqrt(array))
-
-
-# In[32]:
 
 
 #we have to convert this into a fits bintable file
@@ -226,27 +171,10 @@ def write_xylist(diffs, output_file):
 # #here is where we do all the stuff
 
 
-# xy_file = "/lustre/lrspec/ZTF_data/corrected_coordinates/xy_arrays/"+name+"_"+str(quad) #you can give this a more descriptive name
-# write_xylist(diffs, xy_file)
-
-
-# In[34]:
-
-
-# hdul_xylist = fits.open('/lustre/lrspec/ZTF_data/corrected_coordinates/xy_arrays/ztf_20221020138241_000686_zi_c06_x_1.fits')
-
-
-# In[36]:
-
-
-# diffs
-
-
-# In[ ]:
 
 
 for name in training_filenames:
-    file = '/lustre/lrspec/ZTF_data/2022/1020/'+name+'.fits.fz'
+    file = all_data_path+'/'+name+'.fits.fz'
     print(file)
     hdul_start = fits.open(file)
     for quad in range(1,5):
@@ -254,5 +182,6 @@ for name in training_filenames:
         xy_file = "/lustre/lrspec/ZTF_data/corrected_coordinates/xy_arrays/"+name+"_"+str(quad)
         # plt.imshow(np.sqrt(hdul_start[quad].data))
         diffs = get_diffs(array, quad)
+        print("first few diffs:",diffs[:10])
         write_xylist(diffs, xy_file)
 

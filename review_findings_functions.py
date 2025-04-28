@@ -1080,3 +1080,5 @@ def get_tot_streak(image, col, tracking=True, half_aperture=2):
         tot[r] = combined
 
     return tot, maxcols
+
+

@@ -328,7 +328,7 @@ def get_10_trans_stamps(image, sigmas, intensities, center_values, counter, plot
         if plot == True:
             # show_streak(implanted, streak_x_val, center_value_y)
             get_stamp(implanted, streak_x_val, center_value_y, plot=True)
-        intensity_sigma = (intensity, sigma)
+        intensity_sigma = (intensity, sigma, streak_x_val,center_value_y)
         print("stamp info: ", intensity_sigma)
         stamp_info.append(intensity_sigma)
         stamp = get_stamp(implanted, streak_x_val, center_value_y, plot=False)
