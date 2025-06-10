@@ -1082,3 +1082,69 @@ def get_tot_streak(image, col, tracking=True, half_aperture=2):
     return tot, maxcols
 
 
+def get_snr_chunks(tot, df, index, wid=10):
+    """
+    ratio, stdv, avg
+    excludes 20 points around center of transient detection
+    takes about 10 chunks of 100 points
+    takes tot like from: 
+    tot, maxcols = get_tot(df, index, half_aperture, tracking)
+    wid is offset from cnn's returned row/col and image row/col
+    for us it's always 10
+    """
+    row = int(df.loc[index]["row_from_nn"]) + wid
+    arr = np.concatenate((tot[ : row - 10], tot[row + 10 : ]))
+    arr_chunks = np.array_split(arr,len(arr)//100)
+    arr_chunks_combined = np.concatenate(arr_chunks[1:-1:3])
+    stdv = np.std(arr_chunks_combined)
+    avg = np.average(arr_chunks_combined)
+    signal = tot[row] - avg
+    ratio = signal / stdv
+    return ratio, stdv, avg
+
+def get_snr_whole_image(tot, df, index, wid=10):
+    """
+    returns ratio, stdv, avg
+    excludes 20 points around center of transient detection
+    takes tot like from: 
+    tot, maxcols = get_tot(df, index, half_aperture, tracking)
+    wid is offset from cnn's returned row/col and image row/col
+    for us it's always 10
+    """
+    row = int(df.loc[index]["row_from_nn"]) + wid
+    arr = np.concatenate((tot[ : row - 10], tot[row + 10 : ]))
+    stdv = np.std(arr)
+    avg = np.average(arr)
+    signal = tot[row] - avg
+    ratio = signal / stdv
+    return ratio, stdv, avg
+
+def add_snr_whole_and_chunks(df, half_aperture=2, tracking=True):
+    """
+    returns the dataframe with new columns for snr, stdv, and average value
+    for both whole time series and chunks of it
+    """
+    snr_whole = np.zeros(len(df))
+    snr_chunks = np.zeros(len(df))
+    stdv_whole = np.zeros(len(df))
+    stdv_chunks = np.zeros(len(df))
+    avg_whole = np.zeros(len(df))
+    avg_chunks = np.zeros(len(df))
+    for index in df.index:
+        # print(index)
+        tot, maxcols =get_tot(df, index, half_aperture, tracking)
+        ratio, stdv, avg = get_snr_whole_image(tot, df, index)
+        ratio_ch, stdv_ch, avg_ch = get_snr_chunks(tot, df, index)
+        snr_whole[index] = ratio
+        snr_chunks[index] = ratio_ch
+        stdv_whole[index] = stdv
+        stdv_chunks[index] = stdv_ch
+        avg_whole[index] = avg
+        avg_chunks[index] = avg_ch
+    df["snr_whole"] = snr_whole
+    df["snr_chunks"] = snr_chunks
+    df["stdv_whole"] = stdv_whole
+    df["stdv_chunks"] = stdv_chunks
+    df["avg_whole"] = avg_whole
+    df["avg_chunks"] = avg_chunks
+    return df
