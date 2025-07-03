@@ -1082,69 +1082,60 @@ def get_tot_streak(image, col, tracking=True, half_aperture=2):
     return tot, maxcols
 
 
-def get_snr_chunks(tot, df, index, wid=10):
-    """
-    ratio, stdv, avg
-    excludes 20 points around center of transient detection
-    takes about 10 chunks of 100 points
-    takes tot like from: 
-    tot, maxcols = get_tot(df, index, half_aperture, tracking)
-    wid is offset from cnn's returned row/col and image row/col
-    for us it's always 10
-    """
-    row = int(df.loc[index]["row_from_nn"]) + wid
-    arr = np.concatenate((tot[ : row - 10], tot[row + 10 : ]))
-    arr_chunks = np.array_split(arr,len(arr)//100)
-    arr_chunks_combined = np.concatenate(arr_chunks[1:-1:3])
-    stdv = np.std(arr_chunks_combined)
-    avg = np.average(arr_chunks_combined)
-    signal = tot[row] - avg
-    ratio = signal / stdv
-    return ratio, stdv, avg
+def get_snr_integrated(tot, row):
+    '''
+    inputs: tot as in tot, maxcols = rff.get_tot(df,index)
+    row, as in row = int(df.loc[index]["row_from_nn"]) + wid
+    outputs: 
+    snr_local
+    snr_global
+    noise_local
+    noise_global
+    local_average_outside: baseline to comparison to height
+    height
+    FWHM: full width half max
+    signal_local
+    '''
+    local_outside = np.concatenate((tot[ row - 110 : row - 10], tot[row + 10 : row + 110]))
+    local_average_outside = np.average(local_outside)
+    
+    tot_subtracted = np.abs(tot - local_average_outside)
+    height = np.max(tot_subtracted[row - 5 : row + 5])
+    half_max = height/2
+    
+    arr_left = tot_subtracted[ : row ][::-1]
+    arr_right = tot_subtracted[row : ]
+    
+    left_index = next((i for i,v in enumerate(arr_left) if v<half_max), len(arr_left)-1) + 1
+    right_index = next((i for i,v in enumerate(arr_right) if v<half_max), len(arr_right)-1) + 1
+    #using the last one if none found
+    
+    window_minus_average = tot_subtracted[row - left_index : row + right_index]
+    FWHM = len(window_minus_average)
+    
+    integrated_window = np.sum(window_minus_average)
+    signal_local = np.sqrt(np.abs(integrated_window))
+    noise_local = np.std(local_outside)
+    noise_global = np.std(np.concatenate((tot[ 100 : row - 10], tot[row + 10 : -100])))
+    snr_local = signal_local/noise_local
+    snr_global = signal_local/noise_global
+    return snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local
 
-def get_snr_whole_image(tot, df, index, wid=10):
+def add_snr_integrated(df, half_aperture=2, tracking=True, wid=10):
     """
-    returns ratio, stdv, avg
-    excludes 20 points around center of transient detection
-    takes tot like from: 
-    tot, maxcols = get_tot(df, index, half_aperture, tracking)
-    wid is offset from cnn's returned row/col and image row/col
-    for us it's always 10
+    returns the dataframe with new columns for outputs of
+    snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM 
     """
-    row = int(df.loc[index]["row_from_nn"]) + wid
-    arr = np.concatenate((tot[ : row - 10], tot[row + 10 : ]))
-    stdv = np.std(arr)
-    avg = np.average(arr)
-    signal = tot[row] - avg
-    ratio = signal / stdv
-    return ratio, stdv, avg
+    column_names = ['snr_local', 'snr_global', 'noise_local', 'noise_global', 
+                'local_average_outside', 'height', 'FWHM', 'signal_local']
 
-def add_snr_whole_and_chunks(df, half_aperture=2, tracking=True):
-    """
-    returns the dataframe with new columns for snr, stdv, and average value
-    for both whole time series and chunks of it
-    """
-    snr_whole = np.zeros(len(df))
-    snr_chunks = np.zeros(len(df))
-    stdv_whole = np.zeros(len(df))
-    stdv_chunks = np.zeros(len(df))
-    avg_whole = np.zeros(len(df))
-    avg_chunks = np.zeros(len(df))
+    for col in column_names:
+        df[col] = np.zeros(len(df))
+    
     for index in df.index:
         # print(index)
-        tot, maxcols =get_tot(df, index, half_aperture, tracking)
-        ratio, stdv, avg = get_snr_whole_image(tot, df, index)
-        ratio_ch, stdv_ch, avg_ch = get_snr_chunks(tot, df, index)
-        snr_whole[index] = ratio
-        snr_chunks[index] = ratio_ch
-        stdv_whole[index] = stdv
-        stdv_chunks[index] = stdv_ch
-        avg_whole[index] = avg
-        avg_chunks[index] = avg_ch
-    df["snr_whole"] = snr_whole
-    df["snr_chunks"] = snr_chunks
-    df["stdv_whole"] = stdv_whole
-    df["stdv_chunks"] = stdv_chunks
-    df["avg_whole"] = avg_whole
-    df["avg_chunks"] = avg_chunks
+        tot, maxcols = get_tot(df, index, half_aperture, tracking)
+        row = int(df.loc[index]["row_from_nn"]) + wid
+        snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local = get_snr_integrated(tot, row)
+        df.loc[index, column_names] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local]
     return df
