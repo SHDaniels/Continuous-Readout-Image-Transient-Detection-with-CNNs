@@ -488,6 +488,18 @@ def reduce_size(df, thr):
     )
     return reduced
 
+def reduce_max_3(df, imagenobg, thr=300):
+    drop_indices = []
+    for index in df.index.to_numpy():
+        row = int(df.loc[index]["row_from_nn"]) + 10
+        col = int(df.loc[index]["col_from_nn"]) + 10
+        littlerstamp = imagenobg[row - 4 : row + 4, col - 4 : col + 4]
+
+        if np.max(littlerstamp) < thr:
+            drop_indices.append(index)
+    newdf = df.drop(drop_indices)
+    return newdf
+
 
 def reduce_cr_flag(df, thr):
     """
@@ -1139,3 +1151,228 @@ def add_snr_integrated(df, half_aperture=2, tracking=True, wid=10):
         snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local = get_snr_integrated(tot, row)
         df.loc[index, column_names] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local]
     return df
+
+
+
+
+def get_initial_df_for_lc(lc_filename, tolerance=10):
+    '''
+    used for plot_lc_from_csv_with_transient_df
+    lc_filename: filename of saved light curve
+    tolerance: how far from the streak the transient has to be
+    in order for it to count as on the streak
+    default: ten pixels
+    returns a dataframe
+    '''
+    df_path = (
+    '/lustre/lrspec/ZTF_data/science_extractions/1020/')
+    filename_start = lc_filename[11:50]
+    quad = lc_filename[51]
+    df_filename = filename_start+'.fits.fz'+quad+'alllist'
+    print(df_filename)
+    df = pd.read_csv(df_path+df_filename)
+    #i think we're gonna ignore the "both" for now
+    df = df[df['type']!='both']
+    #so do we think that row is x and column is y? seems likely
+    lc_x_coord = int(lc_filename[53:57])
+    #we want col from cnn as our streak column
+    detection_col = df['col_from_nn']+10
+    df = df[np.abs(lc_x_coord-detection_col)<tolerance]
+    return df
+    
+    
+def get_second_df_for_lc(lc_filename, tolerance=10):
+    '''
+    used for plot_lc_from_csv_with_transient_df
+    lc_filename: filename of saved light curve
+    tolerance: how far from the streak the transient has to be
+    in order for it to count as on the streak
+    default: ten pixels
+    returns a dataframe
+    '''
+    df_path = (
+    '/lustre/lrspec/ZTF_data/science_extractions/1020/')
+    filename_start = lc_filename[11:50]
+    quad = lc_filename[51]
+    df_filename = filename_start+'.fits.fz'+quad+'alllist'+ "_reduced"    
+    print(df_filename)
+    df = pd.read_csv(df_path+df_filename)
+    #i think we're gonna ignore the "both" for now
+    df = df[df['type']!='both']
+    #so do we think that row is x and column is y? seems likely
+    lc_x_coord = int(lc_filename[53:57])
+    #we want col from cnn as our streak column
+    detection_col = df['col_from_nn']+10
+    df = df[np.abs(lc_x_coord-detection_col)<tolerance]
+    # print(len(df))
+    return df
+
+def get_third_df_for_lc(lc_filename, tolerance=10):
+    '''
+    used for plot_lc_from_csv_with_transient_df
+    lc_filename: filename of saved light curve
+    tolerance: how far from the streak the transient has to be
+    in order for it to count as on the streak
+    default: ten pixels
+    returns a dataframe
+    '''
+    df_path = (
+    '/lustre/lrspec/ZTF_data/science_extractions/1020/')
+    filename_start = lc_filename[11:50]
+    quad = lc_filename[51]
+    df_filename = filename_start+'.fits.fz'+quad+'alllist'+ "_reduced" +"_sobelratio"+"_snr" 
+    print(df_filename)
+    df = pd.read_csv(df_path+df_filename)
+    # return df
+    #i think we're gonna ignore the "both" for now
+    df = df[df['type']!='both']
+    #so do we think that row is x and column is y? seems likely
+    lc_x_coord = int(lc_filename[53:57])
+    #we want col from cnn as our streak column
+    detection_col = df['col_from_nn']+10
+    df = df[np.abs(lc_x_coord-detection_col)<tolerance]
+    return df
+
+def get_last_df_for_lc(lc_filename):
+    '''
+    used for plot_lc_from_csv_with_transient_df
+    lc_filename: filename of saved light curve
+    tolerance: how far from the streak the transient has to be
+    in order for it to count as on the streak
+    default: ten pixels
+    returns a dataframe
+    '''
+    df_last = pd.read_csv("/home/3155/best_cands")
+    filename_start = lc_filename[11:50]+'.'
+    df_last_ourfile = df_last[df_last['filename']==filename_start]
+
+    quad = lc_filename[51]
+    
+    df_last_ourquad = df_last_ourfile[df_last_ourfile['quadrant']==int(quad)]
+    lc_x_coord = int(lc_filename[53:57])
+    df_last_ourstreak = df_last_ourquad[np.abs(df_last_ourquad['closest_x']-lc_x_coord)<1]
+    return df_last_ourstreak
+
+
+def plot_lc_from_csv_with_transient_df(lc_filename, df, rowindex, hap=2):
+    '''
+    plots light curve with transient candidates, color coded to
+    which part of the pipeline they were removed on
+    give it lc_filename OR df and rowindex (make lc_filename=None)
+    hap: half aperture for light curve, allowable from 2 to 5
+    '''
+    if lc_filename==None:
+        lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+        df_row = df.loc[rowindex]
+        lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quadrant'])+'_'+str(int(df_row['closest_x']))+'_'+str(int(df_row['closest_y']))+'.csv'
+    
+    lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+    lc_df = pd.read_csv(lightcurve_path+lc_filename)
+    tot = lc_df['flux_hap_'+str(hap)]
+    # plt.plot(tot, zorder=10)
+    fluxerr = np.sqrt(tot / 6.2 + 8.5**2)  # 6.2 electrons per photon, read noise is 8.5
+    plt.rcParams["figure.figsize"] = (10, 5)
+    fig, ax = plt.subplots()
+    ax.errorbar(
+        np.arange(len(tot)),
+        tot,
+        yerr=fluxerr,
+        color="black",
+        ecolor="black",
+        elinewidth=1,
+        linestyle="none",
+        marker=".",
+        markersize=1,
+        alpha=0.4,
+        label="Shot Noise",
+        zorder=10
+    )
+    transients_df = get_initial_df_for_lc(lc_filename, tolerance=10)
+    for i, row in transients_df.iterrows():
+        # print(i)
+        row_num = (int(row['row_from_nn'])+10)
+        if i==transients_df.index[0]:
+            plt.axvline(x=row_num,c='mistyrose', label = "CNN marked as a cosmic ray")
+        else:
+            plt.axvline(x=row_num,c='mistyrose')
+        ax.plot(
+        np.arange(len(tot))[row_num - 9 : row_num + 9],
+        tot[row_num - 9 : row_num + 9],
+        color="white",
+        linestyle="none",
+        marker=".",
+        markersize=7,
+        markeredgecolor="black",
+        zorder=10,
+    )
+#     #three things happen:
+#     # Reduce based on type != 'cr'
+    df_nocr = transients_df[transients_df["type"] != "cr"]
+    for i, row in df_nocr.iterrows():
+        # print(i)
+        row_num = (int(row['row_from_nn'])+10)
+        if i==df_nocr.index[0]:
+            plt.axvline(x=row_num,c='thistle', label = "eliminated: too close to edges")
+        else:
+            plt.axvline(x=row_num,c='thistle')
+    df_reduced_edges= reduce_edges(df_nocr, 15)
+    for i, row in df_reduced_edges.iterrows():
+        # print(i)
+        row_num = (int(row['row_from_nn'])+10)
+        if i==df_reduced_edges.index[0]:
+            plt.axvline(x=row_num,c='paleturquoise', label = "eliminated: total size < 4 pixels")
+        else:
+            plt.axvline(x=row_num,c='paleturquoise')
+    df_reduced_edges_size4 = reduce_size(df_reduced_edges, 4)
+    for i, row in df_reduced_edges_size4.iterrows():
+    # print(i)
+        row_num = (int(row['row_from_nn'])+10)
+        if i==df_reduced_edges_size4.index[0]:
+            plt.axvline(x=row_num,c='lemonchiffon', label = "eliminated: not sufficiently bright")
+        else:
+            plt.axvline(x=row_num,c='lemonchiffon')
+#     #reduce_max_3 got saved as a new df
+    
+    df_second = get_second_df_for_lc(lc_filename, tolerance=10)
+    for i, row2 in df_second.iterrows():
+        # print(i)
+        row_num = (int(row2['row_from_nn'])+10)
+        if i==df_second.index[0]:
+            plt.axvline(x=row_num,c='lightsteelblue', label = "eliminated: sobel ratio < 5 (cosmic ray)")
+        else:
+            plt.axvline(x=row_num,c='lightsteelblue')  
+    df_third = get_third_df_for_lc(lc_filename, tolerance=10)
+    for i, row in df_third.iterrows():
+    # print(i)
+        row_num = (int(row['row_from_nn'])+10)
+        if i==df_third.index[0]:
+            plt.axvline(x=row_num,c='pink', label = "eliminated: local snr<1")
+        else:
+            plt.axvline(x=row_num,c='pink')
+        if np.abs(row['snr_center'])>25:
+            plt.axvline(x=row_num,c='orange', label = "eliminated: moving object (snr>25)")
+            
+    #i definitely did not include anything with SNR>25 at this point but i dont think i saved that
+    #the only other strict cut was local snr>1
+    #if i add the simultaneity criterion then i suppose i should put that here as well
+    
+    df_last = get_last_df_for_lc(lc_filename)
+    for i, row in df_last.iterrows():
+    # print(i)
+        row_num = (int(row['row_from_nn'])+10)
+        if i==df_last.index[0]:
+            plt.axvline(x=row_num,c='palegreen', label = "remains")
+        else:
+            plt.axvline(x=row_num,c='palegreen')
+    
+    ax.set_title("Lightcurve with Transient Candidate Cuts",fontsize=20)
+    ax.set_ylabel("Flux (counts)", fontsize=11)
+    ax.set_xlabel("Time (seconds)", fontsize=12)
+    ax.set_xticks(np.linspace(0, 3080 * 10 / 11, 10))
+    ax.set_xticklabels(
+        np.round(np.linspace(0, 9, 10, dtype="int")), fontsize=13
+    )
+    ax.legend(bbox_to_anchor=(1.1, 1.05),fontsize=18)
+    fig.show()
+    # return lc_df
+    
