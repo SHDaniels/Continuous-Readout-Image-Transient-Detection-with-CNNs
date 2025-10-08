@@ -3,6 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from scipy.ndimage import sobel
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import plotly.express as px
 
 
 def getdf(direcname):
@@ -487,6 +490,18 @@ def reduce_size(df, thr):
         + "."
     )
     return reduced
+
+def reduce_max_3(df, imagenobg, thr=300):
+    drop_indices = []
+    for index in df.index.to_numpy():
+        row = int(df.loc[index]["row_from_nn"]) + 10
+        col = int(df.loc[index]["col_from_nn"]) + 10
+        littlerstamp = imagenobg[row - 4 : row + 4, col - 4 : col + 4]
+
+        if np.max(littlerstamp) < thr:
+            drop_indices.append(index)
+    newdf = df.drop(drop_indices)
+    return newdf
 
 
 def reduce_cr_flag(df, thr):
@@ -1082,3 +1097,931 @@ def get_tot_streak(image, col, tracking=True, half_aperture=2):
     return tot, maxcols
 
 
+def get_snr_integrated(tot, row):
+    '''
+    inputs: tot as in tot, maxcols = rff.get_tot(df,index)
+    row, as in row = int(df.loc[index]["row_from_nn"]) + wid
+    outputs: 
+    snr_local
+    snr_global
+    noise_local
+    noise_global
+    local_average_outside: baseline to comparison to height
+    height
+    FWHM: full width half max
+    signal_local
+    '''
+    local_outside = np.concatenate((tot[ row - 110 : row - 10], tot[row + 10 : row + 110]))
+    local_average_outside = np.average(local_outside)
+    
+    tot_subtracted = np.abs(tot - local_average_outside)
+    height = np.max(tot_subtracted[row - 5 : row + 5])
+    half_max = height/2
+    
+    arr_left = tot_subtracted[ : row ][::-1]
+    arr_right = tot_subtracted[row : ]
+    
+    left_index = next((i for i,v in enumerate(arr_left) if v<half_max), len(arr_left)-1) + 1
+    right_index = next((i for i,v in enumerate(arr_right) if v<half_max), len(arr_right)-1) + 1
+    #using the last one if none found
+    
+    window_minus_average = tot_subtracted[row - left_index : row + right_index]
+    FWHM = len(window_minus_average)
+    
+    integrated_window = np.sum(window_minus_average)
+    signal_local = np.sqrt(np.abs(integrated_window))
+    noise_local = np.std(local_outside)
+    noise_global = np.std(np.concatenate((tot[ 100 : row - 10], tot[row + 10 : -100])))
+    snr_local = signal_local/noise_local
+    snr_global = signal_local/noise_global
+    return snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local
+
+def add_snr_integrated(df, half_aperture=2, tracking=True, wid=10):
+    """
+    returns the dataframe with new columns for outputs of
+    snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM 
+    """
+    column_names = ['snr_local', 'snr_global', 'noise_local', 'noise_global', 
+                'local_average_outside', 'height', 'FWHM', 'signal_local']
+
+    for col in column_names:
+        df[col] = np.zeros(len(df))
+    
+    for index in df.index:
+        # print(index)
+        tot, maxcols = get_tot(df, index, half_aperture, tracking)
+        row = int(df.loc[index]["row_from_nn"]) + wid
+        snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local = get_snr_integrated(tot, row)
+        df.loc[index, column_names] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local]
+    return df
+
+
+
+
+def get_initial_df_for_lc(lc_filename, tolerance=10):
+    '''
+    used for plot_lc_from_csv_with_transient_df
+    lc_filename: filename of saved light curve
+    tolerance: how far from the streak the transient has to be
+    in order for it to count as on the streak
+    default: ten pixels
+    returns a dataframe
+    '''
+    df_path = (
+    '/lustre/lrspec/ZTF_data/science_extractions/1020/')
+    filename_start = lc_filename[11:50]
+    quad = lc_filename[51]
+    df_filename = filename_start+'.fits.fz'+quad+'alllist'
+    print(df_filename)
+    df = pd.read_csv(df_path+df_filename)
+    #i think we're gonna ignore the "both" for now
+    df = df[df['type']!='both']
+    #so do we think that row is x and column is y? seems likely
+    lc_x_coord = int(lc_filename[53:57])
+    #we want col from cnn as our streak column
+    detection_col = df['col_from_nn']+10
+    df = df[np.abs(lc_x_coord-detection_col)<tolerance]
+    return df
+    
+    
+def get_second_df_for_lc(lc_filename, tolerance=10):
+    '''
+    used for plot_lc_from_csv_with_transient_df
+    lc_filename: filename of saved light curve
+    tolerance: how far from the streak the transient has to be
+    in order for it to count as on the streak
+    default: ten pixels
+    returns a dataframe
+    '''
+    df_path = (
+    '/lustre/lrspec/ZTF_data/science_extractions/1020/')
+    filename_start = lc_filename[11:50]
+    quad = lc_filename[51]
+    df_filename = filename_start+'.fits.fz'+quad+'alllist'+ "_reduced"    
+    print(df_filename)
+    df = pd.read_csv(df_path+df_filename)
+    #i think we're gonna ignore the "both" for now
+    df = df[df['type']!='both']
+    #so do we think that row is x and column is y? seems likely
+    lc_x_coord = int(lc_filename[53:57])
+    #we want col from cnn as our streak column
+    detection_col = df['col_from_nn']+10
+    df = df[np.abs(lc_x_coord-detection_col)<tolerance]
+    # print(len(df))
+    return df
+
+def get_third_df_for_lc(lc_filename, tolerance=10):
+    '''
+    used for plot_lc_from_csv_with_transient_df
+    lc_filename: filename of saved light curve
+    tolerance: how far from the streak the transient has to be
+    in order for it to count as on the streak
+    default: ten pixels
+    returns a dataframe
+    '''
+    df_path = (
+    '/lustre/lrspec/ZTF_data/science_extractions/1020/')
+    filename_start = lc_filename[11:50]
+    quad = lc_filename[51]
+    df_filename = filename_start+'.fits.fz'+quad+'alllist'+ "_reduced" +"_sobelratio"+"_snr" 
+    print(df_filename)
+    df = pd.read_csv(df_path+df_filename)
+    # return df
+    #i think we're gonna ignore the "both" for now
+    df = df[df['type']!='both']
+    #so do we think that row is x and column is y? seems likely
+    lc_x_coord = int(lc_filename[53:57])
+    #we want col from cnn as our streak column
+    detection_col = df['col_from_nn']+10
+    df = df[np.abs(lc_x_coord-detection_col)<tolerance]
+    return df
+
+def get_last_df_for_lc(lc_filename):
+    '''
+    used for plot_lc_from_csv_with_transient_df
+    lc_filename: filename of saved light curve
+    tolerance: how far from the streak the transient has to be
+    in order for it to count as on the streak
+    default: ten pixels
+    returns a dataframe
+    '''
+    df_last = pd.read_csv("/home/3155/best_cands_nosim")
+    filename_start = lc_filename[11:50]+'.'
+    df_last_ourfile = df_last[df_last['filename']==filename_start]
+
+    quad = lc_filename[51]
+    
+    df_last_ourquad = df_last_ourfile[df_last_ourfile['quadrant']==int(quad)]
+    lc_x_coord = int(lc_filename[53:57])
+    df_last_ourstreak = df_last_ourquad[np.abs(df_last_ourquad['closest_x']-lc_x_coord)<1]
+    return df_last_ourstreak
+
+
+def get_withsim_df_for_lc(lc_filename):
+    '''
+    used for plot_lc_from_csv_with_transient_df
+    lc_filename: filename of saved light curve
+    tolerance: how far from the streak the transient has to be
+    in order for it to count as on the streak
+    default: ten pixels
+    returns a dataframe
+    '''
+    df_last = pd.read_csv("/home/3155/best_cands")
+    filename_start = lc_filename[11:50]+'.'
+    df_last_ourfile = df_last[df_last['filename']==filename_start]
+
+    quad = lc_filename[51]
+    
+    df_last_ourquad = df_last_ourfile[df_last_ourfile['quadrant']==int(quad)]
+    lc_x_coord = int(lc_filename[53:57])
+    df_last_ourstreak = df_last_ourquad[np.abs(df_last_ourquad['closest_x']-lc_x_coord)<1]
+    return df_last_ourstreak
+
+
+def plot_lc_from_csv_with_transient_df(lc_filename, df, rowindex, hap=2):
+    '''
+    plots light curve with transient candidates, color coded to
+    which part of the pipeline they were removed on
+    give it lc_filename OR df and rowindex (make lc_filename=None)
+    hap: half aperture for light curve, allowable from 2 to 5
+    '''
+    if lc_filename==None:
+        lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+        df_row = df.loc[rowindex]
+        lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quadrant'])+'_'+str(int(df_row['closest_x']))+'_'+str(int(df_row['closest_y']))+'.csv'
+    
+    lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+    lc_df = pd.read_csv(lightcurve_path+lc_filename)
+    tot = lc_df['flux_hap_'+str(hap)]
+    # plt.plot(tot, zorder=10)
+    fluxerr = np.sqrt(tot / 6.2 + 8.5**2)  # 6.2 electrons per photon, read noise is 8.5
+    plt.rcParams["figure.figsize"] = (10, 5)
+    fig, ax = plt.subplots()
+    ax.errorbar(
+        np.arange(len(tot)),
+        tot,
+        yerr=fluxerr,
+        color="black",
+        ecolor="black",
+        elinewidth=1,
+        linestyle="none",
+        marker=".",
+        markersize=1,
+        alpha=0.4,
+        label="Shot Noise",
+        zorder=10
+    )
+    transients_df = get_initial_df_for_lc(lc_filename, tolerance=10)
+    for i, row in transients_df.iterrows():
+        # print(i)
+        row_num = (int(row['row_from_nn'])+10)
+        if i==transients_df.index[0]:
+            plt.axvline(x=row_num,c='mistyrose', label = "CNN marked as a cosmic ray")
+        else:
+            plt.axvline(x=row_num,c='mistyrose')
+        ax.plot(
+        np.arange(len(tot))[row_num - 9 : row_num + 9],
+        tot[row_num - 9 : row_num + 9],
+        color="white",
+        linestyle="none",
+        marker=".",
+        markersize=7,
+        markeredgecolor="black",
+        zorder=10,
+    )
+#     #three things happen:
+#     # Reduce based on type != 'cr'
+    df_nocr = transients_df[transients_df["type"] != "cr"]
+    for i, row in df_nocr.iterrows():
+        # print(i)
+        row_num = (int(row['row_from_nn'])+10)
+        if i==df_nocr.index[0]:
+            plt.axvline(x=row_num,c='thistle', label = "eliminated: too close to edges")
+        else:
+            plt.axvline(x=row_num,c='thistle')
+    df_reduced_edges= reduce_edges(df_nocr, 15)
+    for i, row in df_reduced_edges.iterrows():
+        # print(i)
+        row_num = (int(row['row_from_nn'])+10)
+        if i==df_reduced_edges.index[0]:
+            plt.axvline(x=row_num,c='paleturquoise', label = "eliminated: total size < 4 pixels")
+        else:
+            plt.axvline(x=row_num,c='paleturquoise')
+    df_reduced_edges_size4 = reduce_size(df_reduced_edges, 4)
+    for i, row in df_reduced_edges_size4.iterrows():
+    # print(i)
+        row_num = (int(row['row_from_nn'])+10)
+        if i==df_reduced_edges_size4.index[0]:
+            plt.axvline(x=row_num,c='lemonchiffon', label = "eliminated: not sufficiently bright")
+        else:
+            plt.axvline(x=row_num,c='lemonchiffon')
+#     #reduce_max_3 got saved as a new df
+    
+    df_second = get_second_df_for_lc(lc_filename, tolerance=10)
+    for i, row2 in df_second.iterrows():
+        # print(i)
+        row_num = (int(row2['row_from_nn'])+10)
+        if i==df_second.index[0]:
+            plt.axvline(x=row_num,c='lightsteelblue', label = "eliminated: sobel ratio < 5 (cosmic ray)")
+        else:
+            plt.axvline(x=row_num,c='lightsteelblue')  
+    df_third = get_third_df_for_lc(lc_filename, tolerance=10)
+    for i, row in df_third.iterrows():
+    # print(i)
+        row_num = (int(row['row_from_nn'])+10)
+        if i==df_third.index[0]:
+            plt.axvline(x=row_num,c='pink', label = "eliminated: local snr<1")
+        else:
+            plt.axvline(x=row_num,c='pink')
+        if np.abs(row['snr_center'])>25:
+            plt.axvline(x=row_num,c='orange', label = "eliminated: moving object (snr>25)")
+            
+    #i definitely did not include anything with SNR>25 at this point but i dont think i saved that
+    #the only other strict cut was local snr>1
+    #if i add the simultaneity criterion then i suppose i should put that here as well
+    
+    df_last = get_last_df_for_lc(lc_filename)
+    for i, row in df_last.iterrows():
+    # print(i)
+        row_num = (int(row['row_from_nn'])+10)
+        if i==df_last.index[0]:
+            plt.axvline(x=row_num,c='palegreen', label = "remains")
+        else:
+            plt.axvline(x=row_num,c='palegreen')
+    
+    ax.set_title("Lightcurve with Transient Candidate Cuts",fontsize=20)
+    ax.set_ylabel("Flux (counts)", fontsize=11)
+    ax.set_xlabel("Time (seconds)", fontsize=12)
+    ax.set_xticks(np.linspace(0, 3080 * 10 / 11, 10))
+    ax.set_xticklabels(
+        np.round(np.linspace(0, 9, 10, dtype="int")), fontsize=13
+    )
+    ax.legend(bbox_to_anchor=(1.1, 1.05),fontsize=18)
+    fig.show()
+    # return lc_df
+    
+    
+    
+    
+
+
+def plot_lc_from_csv_with_transient_df_plotly(lc_filename, df=None, rowindex=None, hap=2):
+    '''
+    Creates an interactive Plotly version of my light curve plot with transient candidates
+    
+    Parameters:
+    lc_filename: path to lightcurve CSV file - probably best to put this as none and use df and rowindex
+    df: dataframe 
+    rowindex: row index 
+    hap: half aperture for light curve, allowable from 2 to 5
+    '''
+    
+    # Handle filename logic 
+    if lc_filename == None:
+        lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+        df_row = df.loc[rowindex]
+        lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quadrant'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+'.csv'
+    
+
+    lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'  
+    lc_df = pd.read_csv(lightcurve_path + lc_filename)
+    
+    # Calculate flux and error
+    tot = lc_df['flux_hap_'+str(hap)]
+    fluxerr = np.sqrt(tot / 6.2 + 8.5**2)  # 6.2 electrons per photon, read noise is 8.5
+    time_points = np.arange(len(tot))
+    
+    # Create the main plot
+    fig = go.Figure()
+    
+
+    
+    # Define colors for different pipeline stages
+    colors = {
+        'cnn_cosmic_ray': 'rgba(255, 228, 225, 1)',  # mistyrose
+        'edges': 'rgba(216, 191, 216, 1)',            # thistle
+        'size': 'rgba(175, 238, 238, 1)',             # paleturquoise
+        'brightness': 'rgba(255, 250, 205, 1)',       # lemonchiffon
+        'sobel': 'rgba(176, 196, 222, 1)',            # lightsteelblue
+        'snr': 'rgba(255, 192, 203, 1)',              # pink
+        'moving': 'rgba(255, 165, 0, 1)',             # orange
+        'remains': 'rgba(152, 251, 152, 1)'           # palegreen
+    }
+    
+    def add_transient_lines(df_transients, color, label, fig, highlight=False):
+        if len(df_transients) == 0:
+            return
+        
+        # Get y-axis range for vertical lines
+        y_min, y_max = min(tot), max(tot)
+        y_range = y_max - y_min
+        y_min_extended = y_min - 0.1 * y_range
+        y_max_extended = y_max + 0.1 * y_range
+        
+        for i, (idx, row) in enumerate(df_transients.iterrows()):
+            row_num = int(row['row_from_nn']) + 10
+            
+            # Add vertical line as a shape (appears behind data)
+            fig.add_shape(
+                type="line",
+                x0=row_num, x1=row_num,
+                y0=y_min_extended, y1=y_max_extended,
+                line=dict(color=color, width=2),
+                opacity=1,
+                layer="below"  # This puts it behind the data
+            )
+            
+            # Add invisible trace for legend (only for first occurrence)
+            if i == 0:
+                fig.add_trace(go.Scatter(
+                    x=[row_num], y=[y_max_extended],
+                    mode='lines',
+                    line=dict(color=color, width=2),
+                    name=label,
+                    showlegend=True,
+                    # opacity=0  # Make the trace itself invisible but keep legend normal
+                ))
+            
+            # Highlight the data points around the transient
+            if highlight==True:
+                if row_num - 9 >= 0 and row_num + 9 < len(tot):
+                    highlight_x = time_points[row_num - 9 : row_num + 9]
+                    highlight_y = tot[row_num - 9 : row_num + 9]
+                    
+                    fig.add_trace(go.Scatter(
+                        x=highlight_x,
+                        y=highlight_y,
+                        mode='markers',
+                        marker=dict(size=8, color='white', line=dict(color='black', width=1)),
+                        showlegend=False,
+                        hovertemplate='<b>Transient Candidate</b><br><b>Time:</b> %{x}<br><b>Flux:</b> %{y:.2f}<extra></extra>'
+                    ))
+    
+
+    
+    # Example of how to structure the data loading:
+    # Replace these with your actual data loading functions
+    try:
+        # These would be your actual function calls:
+        transients_df = get_initial_df_for_lc(lc_filename, tolerance=10)
+        df_nocr = transients_df[transients_df["type"] != "cr"]
+        df_reduced_edges = reduce_edges(df_nocr, 15)
+        df_reduced_edges_size4 = reduce_size(df_reduced_edges, 4)
+        df_second = get_second_df_for_lc(lc_filename, tolerance=10)
+        df_third = get_third_df_for_lc(lc_filename, tolerance=10)
+        df_last = get_last_df_for_lc(lc_filename)
+        
+        df_withsim = get_withsim_df_for_lc(lc_filename)
+        
+
+        
+        # Add the transient markers (you'll replace this with your actual data)
+        add_transient_lines(transients_df, colors['cnn_cosmic_ray'], "CNN marked as cosmic ray", fig)
+        add_transient_lines(df_nocr, colors['edges'], "eliminated: too close to edges", fig)
+        add_transient_lines(df_reduced_edges, colors['size'], "eliminated: total size < 4 pixels", fig)
+        
+        add_transient_lines(df_second, colors['sobel'], "eliminated: sobel ratio < 5 (cosmic ray)", fig)
+        add_transient_lines(df_third, colors['snr'], "eliminated: local snr<1", fig)
+        add_transient_lines(df_withsim, colors['brightness'], "eliminated: has simultaneous events", fig)
+
+    except Exception as e:
+        print(f"Note: Could not load transient data - {e}")
+        print("You'll need to adapt the data loading part for your specific setup")
+ 
+        # Add main light curve with error bars
+    fig.add_trace(go.Scatter(
+        x=time_points,
+        y=tot,
+        error_y=dict(type='data', color='rgba(0,0,0,0.5)',array=fluxerr, visible=True,width=0),
+        mode='markers',
+        marker=dict(size=3, color='black', opacity=0.3),
+        name='Shot Noise',
+        hovertemplate='<b>Time:</b> %{x}<br><b>Flux:</b> %{y:.2f}<br><b>Error:</b> %{error_y.array:.2f}<extra></extra>'
+    ))
+    
+    #maybe this will show up on top
+    add_transient_lines(df_last, colors['remains'], "Remaining transient candidate", fig, highlight=True)
+
+    # Update layout to match your original styling
+    fig.update_layout(
+        title=dict(
+            text=f"Lightcurve #{rowindex} with Half-Aperture {hap} with Transient Candidate Cuts",
+            font=dict(size=20)
+        ),
+        xaxis=dict(
+            title="Time (seconds)",
+            # titlefont=dict(size=12),
+            tickfont=dict(size=13),
+            tickmode='array',
+            tickvals=np.linspace(0, 3080 * 10 / 11, 10),
+            ticktext=[str(int(x)) for x in np.linspace(0, 9, 10)]
+        ),
+        yaxis=dict(
+            title="Flux (counts)",
+            # titlefont=dict(size=11)
+        ),
+        legend=dict(
+            orientation="v",
+            yanchor="top",
+            y=1,
+            xanchor="left", 
+            x=1.02,
+            font=dict(size=14)
+        ),
+        template='plotly_white',
+        width=1300,
+        height=500
+    )
+    
+
+    
+    return fig
+
+
+def plot_transient_streak_plotly(
+    df,
+    index,
+    direcname="1020",
+    half_aperture=2,
+    tracking=True,
+    title=None,
+    plot_tracking=False,
+):
+    """
+    Creates a Plotly version of the upper left image plot from your matplotlib function
+    
+    Parameters:
+    df: dataframe with image information
+    index: row index to plot
+    direcname: directory name for images
+    half_aperture: aperture size parameter
+    tracking: whether to track brightest pixel
+    title: custom title for the plot
+    plot_tracking: whether to show tracking lines
+    
+    Returns:
+    Plotly figure object
+    """
+    
+    # Extract data from dataframe (same as original)
+    wid = 10
+    fname = df.loc[index]["filename"] + "fits.fz"
+    row = int(df.loc[index]["row_from_nn"]) + 10
+    col = int(df.loc[index]["col_from_nn"]) + 10
+    quad = int(df.loc[index]["quadrant"])
+    column = int(col)
+    
+    # Load the image (same as original)
+    fpath = (
+        "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
+        + direcname
+        + "_minus_extras/"
+    )
+    path = fpath + fname
+    
+    try:
+        hdul = fits.open(path)
+        file1_array = hdul[quad].data
+        hdul.close()
+    except Exception as e:
+        print(f"Error loading image: {e}")
+        return None
+    
+    # Process image (same as original)
+    image = file1_array
+    sqrt_image = np.sqrt(image).T  # Apply sqrt and transpose like original
+    
+    # Create the Plotly figure
+    fig = go.Figure()
+    
+    # Add the image as a heatmap
+    fig.add_trace(go.Heatmap(
+        z=sqrt_image,
+        colorscale='gray',
+        showscale=True,
+        colorbar=dict(
+            title="Counts",
+            # titleside="right"
+        ),
+        hovertemplate='<b>X:</b> %{x}<br><b>Y:</b> %{y}<br><b>Intensity:</b> %{z:.2f}<extra></extra>'
+    ))
+    
+    # Add square outline showing the "upper mid" zoomed region
+    # This corresponds to the region shown in your original upper mid plot
+    zoom_x_min = row - 20
+    zoom_x_max = row + 20
+    zoom_y_min = column - 20
+    zoom_y_max = column + 20
+    
+
+
+
+    
+    # Set the layout to match the original
+    
+    
+    fig.update_layout(
+        title=dict(
+            text=title if title else f"Close View - Transient #{index}",
+            font=dict(size=20)
+        ),
+        xaxis=dict(
+            title="",
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False,
+            range=[zoom_x_min, zoom_x_max]
+        ),
+        yaxis=dict(
+            title="",
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False,
+            range=[column - 10, column + 10],  # Match original ylim
+            # scaleanchor="x",
+            # scaleratio=20  # Match original aspect=20
+        ),
+        plot_bgcolor='black',
+        paper_bgcolor='white',
+        width=1000,
+        height=300,
+        margin=dict(l=50, r=50, t=60, b=50)
+    )
+    
+    return fig
+
+
+def plot_whole_streak_plotly(
+    df,
+    index,
+    direcname="1020",
+    half_aperture=2,
+    tracking=True,
+    title=None,
+    plot_tracking=False,
+):
+    """
+    Creates a Plotly version of the upper left image plot from your matplotlib function
+    
+    Parameters:
+    df: dataframe with image information
+    index: row index to plot
+    direcname: directory name for images
+    half_aperture: aperture size parameter
+    tracking: whether to track brightest pixel
+    title: custom title for the plot
+    plot_tracking: whether to show tracking lines
+    
+    Returns:
+    Plotly figure object
+    """
+    
+    # Extract data from dataframe (same as original)
+    wid = 10
+    fname = df.loc[index]["filename"] + "fits.fz"
+    row = int(df.loc[index]["row_from_nn"]) + 10
+    col = int(df.loc[index]["col_from_nn"]) + 10
+    quad = int(df.loc[index]["quadrant"])
+    column = int(col)
+    
+    # Load the image (same as original)
+    fpath = (
+        "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
+        + direcname
+        + "_minus_extras/"
+    )
+    path = fpath + fname
+    
+    try:
+        hdul = fits.open(path)
+        file1_array = hdul[quad].data
+        hdul.close()
+    except Exception as e:
+        print(f"Error loading image: {e}")
+        return None
+    
+    # Process image (same as original)
+    image = file1_array
+    sqrt_image = np.sqrt(image).T  # Apply sqrt and transpose like original
+    
+    # Create the Plotly figure
+    fig = go.Figure()
+    
+    # Add the image as a heatmap
+    fig.add_trace(go.Heatmap(
+        z=sqrt_image,
+        colorscale='gray',
+        showscale=True,
+        colorbar=dict(
+            title="Counts",
+            # titleside="right"
+        ),
+        hovertemplate='<b>X:</b> %{x}<br><b>Y:</b> %{y}<br><b>Intensity:</b> %{z:.2f}<extra></extra>'
+    ))
+    
+    # Add square outline showing the "upper mid" zoomed region
+    # This corresponds to the region shown in your original upper mid plot
+    zoom_x_min = row - 20
+    zoom_x_max = row + 20
+    zoom_y_min = column - 20
+    zoom_y_max = column + 20
+    
+    # Add rectangle outline
+    fig.add_shape(
+        type="rect",
+        x0=zoom_x_min, x1=zoom_x_max,
+        y0=zoom_y_min, y1=zoom_y_max,
+        line=dict(color="red", width=2),
+        fillcolor="rgba(0,0,0,0)",  # Transparent fill
+        layer="above"
+    )
+    
+    # Add a small annotation to label the zoom region
+    fig.add_annotation(
+        x=zoom_x_max,
+        y=zoom_y_max,
+        text="Transient area",
+        showarrow=True,
+        arrowhead=2,
+        arrowsize=1,
+        arrowwidth=2,
+        arrowcolor="red",
+        font=dict(color="red", size=12),
+        bgcolor="rgba(255,255,255,0.8)",
+        bordercolor="red",
+        borderwidth=1
+    )
+    
+    # Add tracking lines if requested
+    if plot_tracking:
+        # You'd need to implement get_tot function or pass tracking data
+        # For now, this is a placeholder for the tracking lines
+        try:
+            # This would need your get_tot function
+            # tot, maxcols = get_tot(df, index, half_aperture, tracking)
+            # 
+            # # Add tracking lines
+            # fig.add_trace(go.Scatter(
+            #     x=list(range(len(maxcols))),
+            #     y=maxcols + half_aperture + 1,
+            #     mode='lines',
+            #     line=dict(color='yellow', width=2),
+            #     name='Upper tracking',
+            #     showlegend=False
+            # ))
+            # 
+            # fig.add_trace(go.Scatter(
+            #     x=list(range(len(maxcols))),
+            #     y=maxcols - half_aperture,
+            #     mode='lines',
+            #     line=dict(color='yellow', width=2),
+            #     name='Lower tracking',
+            #     showlegend=False
+            # ))
+            pass
+        except:
+            print("Tracking lines not implemented - need get_tot function")
+    
+    # Set the layout to match the original
+    
+    
+    fig.update_layout(
+        title=dict(
+            text=title if title else f"Whole Streak View - Transient #{index}",
+            font=dict(size=20)
+        ),
+        xaxis=dict(
+            title="",
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False,
+            range=[0, sqrt_image.shape[1]]
+        ),
+        yaxis=dict(
+            title="",
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False,
+            range=[column - 20, column + 20],  # Match original ylim
+            scaleanchor="x",
+            scaleratio=20  # Match original aspect=20
+        ),
+        plot_bgcolor='black',
+        paper_bgcolor='white',
+        width=1300,
+        height=300,
+        margin=dict(l=50, r=50, t=60, b=50)
+    )
+    
+    return fig
+
+
+def plot_whole_image_plotly(
+    df,
+    index,
+    direcname="1020",
+    half_aperture=2,
+    tracking=True,
+    title=None,
+    plot_tracking=False,
+):
+    """
+    Creates a Plotly version of the upper left image plot from your matplotlib function
+    
+    Parameters:
+    df: dataframe with image information
+    index: row index to plot
+    direcname: directory name for images
+    half_aperture: aperture size parameter
+    tracking: whether to track brightest pixel
+    title: custom title for the plot
+    plot_tracking: whether to show tracking lines
+    
+    Returns:
+    Plotly figure object
+    """
+    
+    # Extract data from dataframe (same as original)
+    wid = 10
+    fname = df.loc[index]["filename"] + "fits.fz"
+    row = int(df.loc[index]["row_from_nn"]) + 10
+    col = int(df.loc[index]["col_from_nn"]) + 10
+    quad = int(df.loc[index]["quadrant"])
+    column = int(col)
+    
+    # Load the image (same as original)
+    fpath = (
+        "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
+        + direcname
+        + "_minus_extras/"
+    )
+    path = fpath + fname
+    
+    try:
+        hdul = fits.open(path)
+        file1_array = hdul[quad].data
+        hdul.close()
+    except Exception as e:
+        print(f"Error loading image: {e}")
+        return None
+    
+    # Process image (same as original)
+    image = file1_array
+    sqrt_image = np.sqrt(image).T  # Apply sqrt and transpose like original
+    
+    zmin = float(np.nanmin(sqrt_image))
+    zmax = float(np.nanmax(sqrt_image))
+    
+    
+    # Create the Plotly figure
+    fig = go.Figure()
+    
+    # Add the image as a heatmap
+    fig.add_trace(go.Heatmap(
+        z=sqrt_image,
+        zmin=zmin,
+        zmax=zmax,
+        colorscale='gray',
+        showscale=True,
+        colorbar=dict(
+            title="Counts",
+            # titleside="right"
+        ),
+        hovertemplate='<b>X:</b> %{x}<br><b>Y:</b> %{y}<br><b>Intensity:</b> %{z:.2f}<extra></extra>'
+    ))
+    
+    # Add square outline showing the "upper mid" zoomed region
+    # This corresponds to the region shown in your original upper mid plot
+    zoom_x_min = row - 20
+    zoom_x_max = row + 20
+    zoom_y_min = column - 20
+    zoom_y_max = column + 20
+    
+    # Add rectangle outline
+    fig.add_shape(
+        type="rect",
+        x0=zoom_x_min, x1=zoom_x_max,
+        y0=zoom_y_min, y1=zoom_y_max,
+        line=dict(color="red", width=2),
+        fillcolor="rgba(0,0,0,0)",  # Transparent fill
+        layer="above"
+    )
+    
+    # Add a small annotation to label the zoom region
+    fig.add_annotation(
+        x=zoom_x_max,
+        y=zoom_y_max,
+        text="Transient area",
+        showarrow=True,
+        arrowhead=2,
+        arrowsize=1,
+        arrowwidth=2,
+        arrowcolor="red",
+        font=dict(color="red", size=12),
+        bgcolor="rgba(255,255,255,0.8)",
+        bordercolor="red",
+        borderwidth=1
+    )
+    
+    # Add tracking lines if requested
+    if plot_tracking:
+        # You'd need to implement get_tot function or pass tracking data
+        # For now, this is a placeholder for the tracking lines
+        try:
+            # This would need your get_tot function
+            # tot, maxcols = get_tot(df, index, half_aperture, tracking)
+            # 
+            # # Add tracking lines
+            # fig.add_trace(go.Scatter(
+            #     x=list(range(len(maxcols))),
+            #     y=maxcols + half_aperture + 1,
+            #     mode='lines',
+            #     line=dict(color='yellow', width=2),
+            #     name='Upper tracking',
+            #     showlegend=False
+            # ))
+            # 
+            # fig.add_trace(go.Scatter(
+            #     x=list(range(len(maxcols))),
+            #     y=maxcols - half_aperture,
+            #     mode='lines',
+            #     line=dict(color='yellow', width=2),
+            #     name='Lower tracking',
+            #     showlegend=False
+            # ))
+            pass
+        except:
+            print("Tracking lines not implemented - need get_tot function")
+    
+    # Set the layout to match the original
+
+    
+    fig.update_layout(
+        title=dict(
+            text=title if title else f"Whole Image - Transient #{index}",
+            font=dict(size=20)
+        ),
+        xaxis=dict(
+            title="",
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False,
+            range=[0, sqrt_image.shape[1]]
+        ),
+        yaxis=dict(
+            title="",
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False,
+            # range=[column - 20, column + 20],  # Match original ylim
+            # scaleanchor="x",
+            # scaleratio=20  # Match original aspect=20
+        ),
+        plot_bgcolor='black',
+        paper_bgcolor='white',
+        width=1300,
+        height=300,
+        margin=dict(l=50, r=50, t=60, b=50)
+    )
+    
+    return fig

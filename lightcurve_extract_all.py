@@ -68,7 +68,7 @@ def process_xy_positions_efficient(xy_positions, image_path, quad):
     filename = image_path[-47:-8]
     
     print(f"Loading FITS file: {image_path}")
-    print(f"Processing {len(xy_positions)} positions...")
+    print(f"Processing {np.shape(xy_positions)[0]} positions...")
     
     # Load image once
     try:
@@ -100,7 +100,7 @@ def process_xy_positions_efficient(xy_positions, image_path, quad):
                 'position_id': i,
                 'x_input': x_pos,
                 'y_input': y_pos,
-                'row_index': range(len(tot)),
+                'row_index': range(len(tot_2)),
                 'flux_hap_2': tot_2,
                 'flux_hap_3': tot_3,
                 'flux_hap_4': tot_4,
@@ -314,24 +314,26 @@ lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/lightcurve_'
 image_files = os.listdir(image_directory)
 
 for image_filename in image_files:
-    # Create full path to image file
-    image_path = os.path.join(image_directory, image_filename)
     
-    # Extract filename parts for bintable
-    bintable_filename = image_filename[-47:-13]  
-    
-    filename = image_filename[-47:-8]  
-    
-    # Check if lightcurve files already exist
-    if glob.glob(lightcurve_path + filename + '*'):  # Fixed: use glob instead of is_file
-        print('light curves already exist - be aware this does not check for completion')
-        print(lightcurve_path + filename)
-        continue
-    
-    for quad in range(1, 5):
-        bintable_path = xy_directory + bintable_filename + '_' + str(quad) + '.fits'  # Fixed: removed extra str() and parenthesis
-        xy_positions = load_xy_positions_from_fits(bintable_path)
-        process_xy_positions_efficient(xy_positions, image_path, quad)
+    if image_filename[0:3] == 'ztf': #for somet reason there were other files in here
+        # Create full path to image file
+        image_path = os.path.join(image_directory, image_filename)
+        
+        # Extract filename parts for bintable
+        bintable_filename = image_filename[-47:-13]  
+        
+        filename = image_filename[-47:-8]  
+        
+        # Check if lightcurve files already exist
+        if glob.glob(lightcurve_path + filename + '*'+'_4_'+'*'):  # Fixed: use glob instead of is_file
+            print('light curves already exist - skipping')
+            print(lightcurve_path + filename)
+            continue
+        
+        for quad in range(1, 5):
+            bintable_path = xy_directory + bintable_filename + '_' + str(quad) + '.fits'  # Fixed: removed extra str() and parenthesis
+            xy_positions = load_xy_positions_from_fits(bintable_path)
+            process_xy_positions_efficient(xy_positions, image_path, quad)
 
 
 #

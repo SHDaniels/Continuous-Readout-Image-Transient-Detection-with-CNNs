@@ -1909,12 +1909,18 @@ def plot_whole_image_plotly(
     image = file1_array
     sqrt_image = np.sqrt(image).T  # Apply sqrt and transpose like original
     
+    zmin = float(np.nanmin(sqrt_image))
+    zmax = float(np.nanmax(sqrt_image))
+    
+    
     # Create the Plotly figure
     fig = go.Figure()
     
     # Add the image as a heatmap
     fig.add_trace(go.Heatmap(
         z=sqrt_image,
+        zmin=zmin,
+        zmax=zmax,
         colorscale='gray',
         showscale=True,
         colorbar=dict(
@@ -1988,7 +1994,7 @@ def plot_whole_image_plotly(
             print("Tracking lines not implemented - need get_tot function")
     
     # Set the layout to match the original
-    
+
     
     fig.update_layout(
         title=dict(
