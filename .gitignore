@@ -1,0 +1,7 @@
+# Large data files
+*.tar
+*.html
+.ipynb_checkpoints/
+
+# Large notebooks (consider using nbstripout for notebooks)
+*checkpoint.ipynb
