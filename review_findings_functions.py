@@ -33,7 +33,7 @@ def df_shorten(df, size=None, bgmax=None, brlim=None, num_desired=None):
     return df
 
 
-def inspect_df(df, direcname):
+def inspect_df(df, direcname, fpath=None, extension = "fits.fz", normalize=False):
     wid = 10
     figcols = 5
     figrows = 1 + len(df) // figcols
@@ -42,20 +42,27 @@ def inspect_df(df, direcname):
         for j in range(figcols):
             index = figcols * i + j
             if index < len(df):
-                fname = df.iloc[index]["filename"] + "fits.fz"
+                fname = df.iloc[index]["filename"] + extension
                 row = int(df.iloc[index]["row_from_nn"])
                 col = int(df.iloc[index]["col_from_nn"])
-                fpath = (
-                    "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
-                    + direcname
-                    + "_minus_extras/"
-                )
+                if fpath==None:
+                    fpath = (
+                        "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
+                        + direcname
+                        + "_minus_extras/"
+                    )
                 path = fpath + fname
-                hdul = fits.open(path)
-                file1_array = hdul[1].data
-                norm = (file1_array - np.min(file1_array)) / (
-                    np.max(file1_array) - np.min(file1_array)
-                )
+                if extension == "fits.fz":
+                    hdul = fits.open(path)
+                    file1_array = hdul[1].data
+                else:
+                    file1_array = np.load(path)
+                if normalize:
+                    norm = (file1_array - np.min(file1_array)) / (
+                        np.max(file1_array) - np.min(file1_array)
+                    )
+                else:
+                    norm=file1_array
                 # ax[i, j].imshow(norm[col+wid-10:col+wid+10, row-10+wid:row+10+wid])
                 ax[i, j].imshow(
                     np.sqrt(

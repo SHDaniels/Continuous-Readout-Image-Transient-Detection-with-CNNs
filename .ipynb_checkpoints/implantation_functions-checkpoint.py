@@ -131,7 +131,7 @@ def get_image_background(image):
     return background
 
 
-def implant_transient_full_image(image, streak_x_val, center_value_y, intensity, sigma):
+def implant_transient_full_image(image, streak_x_val, center_value_y, intensity, sigma, norm):
     """
     this function takes an image and implants a gaussian brightening event in the given columns (in a streak).
     inputs -
@@ -216,17 +216,20 @@ def implant_transient_full_image(image, streak_x_val, center_value_y, intensity,
 
     # adding back background
     gaussianed_image = gaussianed_image + np.full(np.shape(image), background)
-
+    if norm==False:
+        return gaussianed_image
+    
     # should renormalize it
     norm_gi = (gaussianed_image - np.min(gaussianed_image)) / (
         np.max(gaussianed_image) - np.min(gaussianed_image)
     )
+    if norm==True:
+        return norm_gi
 
-    return norm_gi
 
 
 def implant_10_transients(
-    image, sigmas, intensities, center_values, counter, plot=False
+    image, sigmas, intensities, center_values, counter, norm, plot=False
 ):
     """
     like it says on the tin
@@ -254,7 +257,7 @@ def implant_10_transients(
         y_counter += 1
         intensity_counter += 1
         implanted = implant_transient_full_image(
-            implanted, streak_x_val, center_value_y, intensity, sigma
+            implanted, streak_x_val, center_value_y, intensity, sigma, norm
         )
         # print("intensity "+str(intensity))
         # print("xval "+str(streak_x_val))
