@@ -64,6 +64,56 @@ def get_intensities_pos(total_desired, seed):
     return intensities
 
 
+
+def get_intensities_pos_2(total_desired, seed):
+    """
+    the positive intensities
+    o	For the center of the transient, choose to have at least half the transient in the image
+    (randint between -5 and 26 will be the center of the gaussian for size 10 events)
+    o	intensities of (multiplicative factors) 7, 8, 9, 1.5, 1.3, 1.1, 1.05, 1.01
+    """
+    np.random.seed(
+        seed
+    )  # so that i can keep the same random - last time it was seed 21. before that it was 20
+
+    # for the center of the transient - want at least half of the transient in the image
+    center_values = np.random.randint(15, high=3065, size=58500, dtype=int)
+    # adjusted this to be the whole image
+    evensplit = (
+        total_desired // 11 + 1
+    )  # to make sure there is enough i will put one extra of each
+    intensities_8 = np.full(int(evensplit), 8)
+    intensities_7 = np.full(int(evensplit), 1.5)
+    intensities_105 = np.full(int(evensplit), 1.3)
+    intensities_101 = np.full(int(evensplit), 1.1)
+    intensities_102 = np.full(int(evensplit), 1.15)
+    intensities_103 = np.full(int(evensplit), 1.2)
+    intensities_2 = np.full(int(evensplit), 2)
+    intensities_3 = np.full(int(evensplit), 3)
+    intensities_4 = np.full(int(evensplit), 4)
+    intensities_6 = np.full(int(evensplit), 6)
+    intensities_10 = np.full(int(evensplit), 10)
+
+    intensities = np.concatenate(
+        (
+            intensities_2,
+            intensities_3,
+            intensities_4,
+            intensities_6,
+            intensities_10,
+            intensities_101,
+            intensities_102,
+            intensities_103,
+            intensities_7,
+            intensities_8,
+            intensities_105,
+        )
+    )
+
+    np.random.shuffle(intensities)  # this shuffles the array in place
+    return intensities
+
+
 def get_intensities_neg(total_desired, seed):
     """
     the negative intensities
@@ -87,6 +137,56 @@ def get_intensities_neg(total_desired, seed):
     intensities_101 = np.full(int(evensplit), 0.85)
     intensities_102 = np.full(int(evensplit), 0.8)
     intensities_103 = np.full(int(evensplit), 0.995)
+    # intensities_2 = np.full(int(evensplit), 2)
+    # intensities_3 = np.full(int(evensplit), 3)
+    # intensities_4 = np.full(int(evensplit), 4)
+    # intensities_6 = np.full(int(evensplit), 6)
+    # intensities_10 = np.full(int(evensplit), 10)
+
+    intensities = np.concatenate(
+        (  # intensities_2, intensities_3, intensities_4,
+            # intensities_6, intensities_10,
+            intensities_102,
+            intensities_101,
+            intensities_103,
+            intensities_7,
+            intensities_8,
+            intensities_105,
+        )
+    )
+
+    np.random.shuffle(intensities)  # this shuffles the array in place
+    return intensities
+
+
+
+
+def get_intensities_neg_2(total_desired, seed):
+    """
+    the negative intensities
+    o	For the center of the transient, choose to have at least half the transient in the image
+    (randint between -5 and 26 will be the center of the gaussian for size 10 events)
+    o	intensities of (multiplicative factors) 7, 8, 9, 1.5, 1.3, 1.1, 1.05, 1.01
+    """
+    np.random.seed(
+        seed
+    )  # so that i can keep the same random - last time it was seed 21. before that it was 20
+
+    # for the center of the transient - want at least half of the transient in the image
+    center_values = np.random.randint(15, high=3065, size=58500, dtype=int)
+    # adjusted this to be the whole image
+    evensplit = (
+        total_desired // 5 + 1
+    )  # to make sure there is enough i will put one extra of each
+    # intensities_8 = np.full(int(evensplit), 0.99)
+    # intensities_7 = np.full(int(evensplit), 0.95)
+    intensities_105 = np.full(int(evensplit), 0.9)
+    intensities_101 = np.full(int(evensplit), 0.85)
+    intensities_102 = np.full(int(evensplit), 0.8)
+    # intensities_103 = np.full(int(evensplit), 0.995)
+    intensities_103 = np.full(int(evensplit), 0.75)
+    intensities_8 = np.full(int(evensplit), 0.7)
+    intensities_7 = np.full(int(evensplit), 0.5)
     # intensities_2 = np.full(int(evensplit), 2)
     # intensities_3 = np.full(int(evensplit), 3)
     # intensities_4 = np.full(int(evensplit), 4)

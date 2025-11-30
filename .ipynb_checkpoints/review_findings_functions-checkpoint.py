@@ -659,7 +659,7 @@ def reduce_number_in_file(df, max=1):
 #     return diffinstd
 
 
-def inspect_df_with_quadrant(df, direcname):
+def inspect_df_with_quadrant(df, direcname, imgsize=10):
     """
     plots the stamps corresponding to detections in a dataframe
     no limit, so put in df[:100] or something probably to save time
@@ -691,8 +691,8 @@ def inspect_df_with_quadrant(df, direcname):
                 ax[i, j].imshow(
                     np.sqrt(
                         norm[
-                            row - 10 + wid : row + 10 + wid,
-                            col + wid - 10 : col + wid + 10,
+                            row - imgsize + wid : row + imgsize + wid,
+                            col + wid - imgsize : col + wid + imgsize,
                         ]
                     )
                 )
