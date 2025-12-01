@@ -1,5 +1,7 @@
 to run the pipeline: 
-`python crw_pipeline.py -c 06` where 06 is chip 06
+```
+python crw_pipeline.py -c 06
+``` where 06 is chip 06
 
 individual pipeline elements include:
 
