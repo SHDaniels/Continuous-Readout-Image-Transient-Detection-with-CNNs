@@ -6,6 +6,9 @@ from scipy.ndimage import sobel
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.express as px
+import gc  # garbage collector
+
+
 
 
 def getdf(direcname):
@@ -33,7 +36,7 @@ def df_shorten(df, size=None, bgmax=None, brlim=None, num_desired=None):
     return df
 
 
-def inspect_df(df, direcname, fpath=None, extension = "fits.fz", normalize=False):
+def inspect_df(df, direcname, fpath=None, extension = "fits.fz", normalize=False, star=False):
     wid = 10
     figcols = 5
     figrows = 1 + len(df) // figcols
@@ -45,6 +48,7 @@ def inspect_df(df, direcname, fpath=None, extension = "fits.fz", normalize=False
                 fname = df.iloc[index]["filename"] + extension
                 row = int(df.iloc[index]["row_from_nn"])
                 col = int(df.iloc[index]["col_from_nn"])
+                
                 if fpath==None:
                     fpath = (
                         "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
@@ -256,7 +260,7 @@ def get_sobel_ratio(stamp):
     Lx = sobel(stamp, axis=1)  # column axis
     Ly = sobel(stamp, axis=0)  # rows axis
     sobel_ratio = np.max(Lx) / np.max(Ly)  # we want this to be as large as possible
-    return sobel_ratio
+    return sobel_ratio, Lx, Ly
 
 
 def get_stamp_from_df(index, direcname, df, norm=True, quad=None):
@@ -290,8 +294,9 @@ def get_stamp_from_df(index, direcname, df, norm=True, quad=None):
         stamp = normalized[row - 10 : row + 10, col - 10 : col + 10]
         # plt.imshow(stamp)
         # plt.colorbar()
-        return stamp
         background = get_image_background(normalized)
+        return stamp, background
+        
     stamp = file1_array[row - 10 : row + 10, col - 10 : col + 10]
     # plt.imshow(stamp)
     # plt.colorbar()
@@ -299,17 +304,31 @@ def get_stamp_from_df(index, direcname, df, norm=True, quad=None):
     return stamp, background
 
 
-def add_sobel_ratio(direcname, df):
+def add_sobel_ratio(df, direcname='1020', eff=False):
     """
     returns the dataframe with a new column of sobel ratios
     see get_sobel_ratio(stamp)
     """
     sobels = np.zeros(len(df))
-    for index in range(len(df)):
-        stamp = get_stamp_from_df(index, direcname, df, norm=False)
-        sobel = get_sobel_ratio(stamp)
-        sobels[index] = sobel
+    sobels_x = []
+    sobels_y = []
+    i=0
+    for index in df.index:
+        if eff:
+            stamp, bg = get_stamp_from_df_eff(index, df)
+        else:
+            stamp, bg = get_stamp_from_df(index, direcname, df, norm=False)
+        sobel, x, y = get_sobel_ratio(stamp)
+        # print(sobel)
+        # print(np.shape(x))
+        # print(np.shape(y))
+        sobels[i] = sobel
+        sobels_x.append(x)
+        sobels_y.append(y)
+        i+=1
     df["sobel_ratio"] = sobels
+    df["sobels_x"] = sobels_x
+    df["sobels_y"] = sobels_y
     return df
 
 
@@ -659,7 +678,7 @@ def reduce_number_in_file(df, max=1):
 #     return diffinstd
 
 
-def inspect_df_with_quadrant(df, direcname, imgsize=10):
+def inspect_df_with_quadrant(df, direcname, imgsize=10, star=False, clim=None, titlecol=None):
     """
     plots the stamps corresponding to detections in a dataframe
     no limit, so put in df[:100] or something probably to save time
@@ -694,11 +713,19 @@ def inspect_df_with_quadrant(df, direcname, imgsize=10):
                             row - imgsize + wid : row + imgsize + wid,
                             col + wid - imgsize : col + wid + imgsize,
                         ]
-                    )
+                    ), vmax=clim
                 )
+                if star==True:
+                    starpos = df.iloc[index]['closest_x']
+                    ax[i, j].scatter(starpos- (col - imgsize  + wid), 10)
+                
                 ax[i, j].set_axis_off()
                 # ax[i, j].set_title(fname[26:-8])
-                ax[i, j].set_title(str(index))
+                if titlecol==None:
+                    ax[i, j].set_title(str(index))
+                else:
+                    ax[i, j].set_title(round(df.iloc[index][titlecol]))
+
     plt.tight_layout()
     plt.show()
 
@@ -805,7 +832,7 @@ def plot_time_series_again_aperture(
     tracking=True,
     title=None,
     plot_tracking=False,
-    ylims=0,
+    ylims=0, csv=True, lc_filename=None, fname=None,row=None,col=None,quad=None, lcfpath=None
 ):
     """
     this plots a time series and image from a dataframe,
@@ -821,10 +848,14 @@ def plot_time_series_again_aperture(
     # df=df_0820_short
     # direcname = "0820"
     wid = 10
-    fname = df.loc[index]["filename"] + "fits.fz"
-    row = int(df.loc[index]["row_from_nn"]) + 10
-    col = int(df.loc[index]["col_from_nn"]) + 10
-    quad = int(df.loc[index]["quadrant"])
+    if fname==None:
+        fname = df.loc[index]["filename"] + "fits.fz"
+    if row==None:
+        row = int(df.loc[index]["row_from_nn"]) + 10
+    if col==None:
+        col = int(df.loc[index]["col_from_nn"]) + 10
+    if quad==None:
+        quad = int(df.loc[index]["quadrant"])
 
     # print(testindex)
     # print(df.iloc[testindex]["filename"])
@@ -864,12 +895,15 @@ def plot_time_series_again_aperture(
         figsize=(7.5, 3.5),
         layout="constrained",
     )
-
+    
     background = get_image_background(image)
 
     imagenobackground = image - np.full(np.shape(image), background)
-
-    tot, maxcols = get_tot(df, index, half_aperture, tracking)
+    
+    if csv==False:
+        tot, maxcols = get_tot(df, index, half_aperture, tracking)
+    else:
+        tot, maxcols = get_tot_csv(df, index, lc_filename=lc_filename, half_aperture=half_aperture, lcfpath = lcfpath)
 
     if plot_tracking == True:
         axd["upper left"].plot(maxcols + half_aperture + 1, color="yellow")
@@ -1105,8 +1139,9 @@ def get_tot_streak(image, col, tracking=True, half_aperture=2):
     return tot, maxcols
 
 
-def get_snr_integrated(tot, row):
+def get_snr_integrated(tot, row, new_width_restriction=True):
     '''
+    not actually using the new version since updating that did not fix the efficiency problem
     inputs: tot as in tot, maxcols = rff.get_tot(df,index)
     row, as in row = int(df.loc[index]["row_from_nn"]) + wid
     outputs: 
@@ -1119,12 +1154,30 @@ def get_snr_integrated(tot, row):
     FWHM: full width half max
     signal_local
     '''
-    local_outside = np.concatenate((tot[ row - 110 : row - 10], tot[row + 10 : row + 110]))
-    local_average_outside = np.average(local_outside)
+    newwid = 10
+    # print("newwid ", newwid)
+    if new_width_restriction:
+        tallest_index = np.argmax(tot[row - newwid : row + newwid])
+        # print("tallest_index, ", tallest_index)
+        tallest_index_absolute = tallest_index+(row - newwid)
+        # print("absolute ",tallest_index_absolute)
+        local_outside = np.concatenate((tot[ tallest_index_absolute - 100 - (newwid**2) : tallest_index_absolute - (newwid**2)], tot[tallest_index_absolute + (newwid**2) : tallest_index_absolute + 100 + (newwid**2)]))
+        local_average_outside = np.average(local_outside)
+        tot_subtracted = np.abs(tot - local_average_outside)
+        height = tot_subtracted[tallest_index_absolute]
+        # print("height ",height)
+        # print("local_average_outside ", local_average_outside)
+        half_max = height/2
+        row = tallest_index_absolute #so the rest can stay the same
+    else: #old version
+        local_outside = np.concatenate((tot[ row - 100 - newwid : row - newwid], tot[row + newwid : row + 100 + newwid]))
+        local_average_outside = np.average(local_outside)
+        
+        tot_subtracted = np.abs(tot - local_average_outside)
+        height = np.max(tot_subtracted[row - newwid : row + newwid])
+        half_max = height/2
+
     
-    tot_subtracted = np.abs(tot - local_average_outside)
-    height = np.max(tot_subtracted[row - 5 : row + 5])
-    half_max = height/2
     
     arr_left = tot_subtracted[ : row ][::-1]
     arr_right = tot_subtracted[row : ]
@@ -1132,14 +1185,14 @@ def get_snr_integrated(tot, row):
     left_index = next((i for i,v in enumerate(arr_left) if v<half_max), len(arr_left)-1) + 1
     right_index = next((i for i,v in enumerate(arr_right) if v<half_max), len(arr_right)-1) + 1
     #using the last one if none found
-    
+    # print("indices for size of integral: ", left_index, right_index)
     window_minus_average = tot_subtracted[row - left_index : row + right_index]
     FWHM = len(window_minus_average)
     
     integrated_window = np.sum(window_minus_average)
     signal_local = np.sqrt(np.abs(integrated_window))
     noise_local = np.std(local_outside)
-    noise_global = np.std(np.concatenate((tot[ 100 : row - 10], tot[row + 10 : -100])))
+    noise_global = np.std(np.concatenate((tot[ 100 : row - newwid**2], tot[row + newwid**2 : -100])))
     snr_local = signal_local/noise_local
     snr_global = signal_local/noise_global
     return snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local
@@ -2033,3 +2086,851 @@ def plot_whole_image_plotly(
     )
     
     return fig
+
+
+def get_tot_csv(
+    df,
+    index, lc_filename=None,
+    half_aperture=2, lcfpath='/lustre/lrspec/ZTF_data/lightcurves/1020/'  
+):
+    """
+    returns tot, maxcols: an array that is the flux of the star streak
+    given an aperture that is halfaperture*2+1
+    and if tracking=true, tracks when the streak posittion fluctuates
+    oif tracking==false, goes based on average center of streak
+    put in lc_filename yourself or it will take it from the dataframe 
+    (in which case df and index are ignored)
+    """
+    # Handle filename logic 
+    if lc_filename == None:
+        lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+        df_row = df.loc[index]
+        lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+'.csv'
+    
+    if lcfpath==None:
+        lcfpath = '/lustre/lrspec/ZTF_data/lightcurves/1020/'  
+    lc_df = pd.read_csv(lcfpath + lc_filename)
+    
+    # Calculate flux and error
+    tot = lc_df['flux_hap_'+str(half_aperture)]
+    maxcols = lc_df['max_col']
+
+    return tot, maxcols
+
+
+def get_tot_npy(
+    df,
+    index, posneg,
+    half_aperture=2,
+    tracking=True
+):
+    """
+    FOR EFFICIENCY CALC
+    returns tot, maxcols: an array that is the flux of the star streak
+    given an aperture that is halfaperture*2+1
+    and if tracking=true, tracks when the streak posittion fluctuates
+    oif tracking==false, goes based on average center of streak
+    note: uses loc instead of iloc
+    """
+    if posneg=="pos":
+        extension = "_1_implanted_pos.npy"
+        fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/images/'
+
+    elif posneg=="neg":
+        extension = "_1_implanted_neg.npy"
+        fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/images/'
+
+    wideval = half_aperture
+    wid = 10
+    fname = df.loc[index]["filename"] + extension
+    row = (
+        int(df.loc[index]["row_from_nn"]) + 10
+    )  # we add 10 here bc that's the cnn offset of returned values
+    col = int(df.loc[index]["col_from_nn"]) + 10
+    quad = int(df.loc[index]["quadrant"])
+    column = int(col)
+
+    path = fpath + fname
+    # print(path)
+    file1_array = np.load(path)
+    # norm = (file1_array-np.min(file1_array))/(np.max(file1_array)-np.min(file1_array)) #norm
+    image = file1_array
+
+    background = get_image_background(image)
+
+    imagenobackground = image - np.full(np.shape(image), background)
+
+    if tracking == False:
+        zeropoint = col - 7
+        averages = np.average(
+            imagenobackground[row - 10 : row + 10, zeropoint : zeropoint + 14], axis=0
+        )
+        maxind = np.argmax(averages)
+        tot2 = np.zeros(imagenobackground.shape[0])
+        for r in range(
+            0, imagenobackground.shape[0]
+        ):  # this should be each row, probably
+            maxcol = zeropoint + maxind
+            combined = imagenobackground[r, maxcol]
+            for i in range(1, half_aperture + 1):
+                combined += imagenobackground[r, maxcol - i]
+                combined += imagenobackground[r, maxcol + i]
+            tot2[r] = combined
+        return tot2, np.full(len(tot2), maxcol)
+
+    # so we need to track the whole streak
+    # for each row, need to choose a column index
+    tot = np.zeros(imagenobackground.shape[0])
+    maxcols = np.zeros(imagenobackground.shape[0])
+    zeropoint = col - 10
+    for r in range(0, imagenobackground.shape[0]):  # this should be each row, probably
+        maxcol = np.argmax(imagenobackground[r, zeropoint : zeropoint + 20]) + zeropoint
+        maxcols[r] = maxcol
+        combined = imagenobackground[r, maxcol]
+        for i in range(1, half_aperture + 1):
+            combined += imagenobackground[r, maxcol - i]
+            combined += imagenobackground[r, maxcol + i]
+        # combined = imagenobackground[r, maxcol-2] + imagenobackground[r, maxcol-1] + imagenobackground[r, maxcol] + imagenobackground[r, maxcol+1] + imagenobackground[r, maxcol+2]
+        # print(combined)
+        tot[r] = combined
+
+    return tot, maxcols
+
+
+
+def add_sobel_ratio_fast(df, direcname='1020'):
+    """
+    returns the dataframe with a new column of sobel ratios
+    see get_sobel_ratio(stamp)
+    """
+    sobels = {}
+    sobels_x = {}
+    sobels_y = {}
+    # i=0
+    for filename, group in df.groupby('filename'):     
+        fpath = (
+            "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
+            + direcname
+            + "_minus_extras/"
+        )
+        path = fpath + filename+'fits.fz'
+        with fits.open(path) as hdul:
+            for idx in group.index:
+                # quad = int(df.loc[idx]["quad"])
+                
+                stamp, bg = get_stamp_from_hdul(hdul, idx, direcname, df, norm=False)
+                sobel, x, y = get_sobel_ratio(stamp-bg)
+                # print(sobel)
+                # print(np.shape(x))
+                # print(np.shape(y))
+                sobels[idx] = sobel
+                sobels_x[idx] = x
+                sobels_y[idx] = y
+                # i+=1
+    df["sobel_ratio"] = df.index.map(sobels)
+    df["sobels_x"] = df.index.map(sobels_x)
+    df["sobels_y"] = df.index.map(sobels_y)
+    return df
+
+
+def get_stamp_from_hdul(hdul, index, direcname, df, norm=True, quad=None):
+    """
+    returns a 20x20 numpy array of brightnesses centered around the detection
+    located at index of dataframe df
+    note that the filepath to the science images is hardcoded currently
+    norm=True has the image normalized (not the stamp, the entire image)
+    norm=False has it in terms of counts
+    """
+    # fname = df.loc[index]["filename"] + "fits.fz"
+    row = int(df.loc[index]["row_from_nn"]) + 10
+    col = int(df.loc[index]["col_from_nn"]) + 10
+    if quad==None:
+        quad = int(df.loc[index]["quad"])
+    file1_array = hdul[quad].data
+    if norm:
+        normalized = (file1_array - np.min(file1_array)) / (
+            np.max(file1_array) - np.min(file1_array)
+        )  # norm
+        stamp = normalized[row - 10 : row + 10, col - 10 : col + 10]
+        # plt.imshow(stamp)
+        # plt.colorbar()
+        # background = get_image_background(normalized)
+        return stamp #, background
+        
+    stamp = file1_array[row - 10 : row + 10, col - 10 : col + 10]
+    # plt.imshow(stamp)
+    # plt.colorbar()
+    # background = get_image_background(file1_array)
+    return stamp #, background
+
+def get_stamp_from_df_eff(index, df, posneg=None, norm=False, quad=None):
+    """
+    returns a 20x20 numpy array of brightnesses centered around the detection
+    located at index of dataframe df
+    norm=True has the image normalized (not the stamp, the entire image)
+    norm=False has it in terms of counts
+    """
+    
+    row = int(df.loc[index]["row_from_nn"]) + 10
+    col = int(df.loc[index]["col_from_nn"]) + 10
+    posneg = df.loc[index]["type"]
+    
+    if quad==None:
+        quad = int(df.loc[index]["quadrant"])
+        
+    if posneg=="pos":
+        extension = "_1_implanted_pos.npy"
+        fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/images/'
+
+    elif posneg=="neg":
+        extension = "_1_implanted_neg.npy"
+        fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/images/'
+        
+    fname = df.loc[index]["filename"] + extension
+    
+    path = fpath + fname
+    # hdul = fits.open(path)
+    file1_array = np.load(path)
+    if norm:
+        normalized = (file1_array - np.min(file1_array)) / (
+            np.max(file1_array) - np.min(file1_array)
+        )  # norm
+        stamp = normalized[row - 10 : row + 10, col - 10 : col + 10]
+        # plt.imshow(stamp)
+        # plt.colorbar()
+        return stamp
+        background = get_image_background(normalized)
+    stamp = file1_array[row - 10 : row + 10, col - 10 : col + 10]
+    # plt.imshow(stamp)
+    # plt.colorbar()
+    background = get_image_background(file1_array)
+    # plt.imshow(stamp)
+    return stamp, background
+
+
+
+def add_stamps(df, direcname='1020'):
+    """
+    returns the dataframe with new columns of stamp, norm stamp
+
+    """
+    stamps = {}
+    norm_stamps = {}
+    # i=0
+    for filename, group in df.groupby('filename'):     
+        fpath = (
+            "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
+            + direcname
+            + "_minus_extras/"
+        )
+        path = fpath + filename+'fits.fz'
+        # print(path)
+        with fits.open(path) as hdul:
+            for idx in group.index:
+                # quad = int(df.loc[idx]["quad"])
+                
+                stamp = get_stamp_from_hdul(hdul, idx, direcname, df, norm=False)
+                normstamp = get_stamp_from_hdul(hdul, idx, direcname, df, norm=True)
+                # print(sobel)
+                # print(np.shape(x))
+                # print(np.shape(y))
+                stamps[idx] = stamp
+                norm_stamps[idx] = normstamp
+                # bg = get_image_background(normalized)
+                # i+=1
+                del stamp
+                del normstamp
+                gc.collect()
+    df["stamp"] = df.index.map(stamps)
+    df["norm_stamp"] = df.index.map(norm_stamps)
+    return df
+
+def add_stamps2(df, direcname='1020'):
+    """
+    returns the dataframe with new columns of stamp, norm stamp
+    """
+    df["stamp"] = None
+    df["norm_stamp"] = None
+    
+    fpath = (
+        "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
+        + direcname
+        + "_minus_extras/"
+    )
+    
+    for filename, group in df.groupby('filename', sort=False):  # sort=False saves time
+        path = fpath + filename + 'fits.fz'
+        
+        with fits.open(path, memmap=True) as hdul:  # Memory-map the FITS file
+            indices = group.index.tolist()  # Batch access
+            for idx in indices:
+                df.at[idx, "stamp"] = get_stamp_from_hdul(hdul, idx, direcname, df, norm=False)
+                df.at[idx, "norm_stamp"] = get_stamp_from_hdul(hdul, idx, direcname, df, norm=True)
+    
+    return df
+
+def add_stamps3(df, direcname='1020'):
+    """
+    returns the dataframe with new columns of stamp, norm stamp
+    """
+    df["stamp"] = None
+    df["norm_stamp"] = None
+    
+    fpath = (
+        "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
+        + direcname
+        + "_minus_extras/"
+    )
+    
+    for filename, group in df.groupby('filename', sort=False):
+        path = fpath + filename + 'fits.fz'
+        
+        with fits.open(path, memmap=True) as hdul:
+            # Group by quad to minimize image normalizations
+            for quad, quad_group in group.groupby('quad'):
+                quad_data = hdul[int(quad)].data
+                
+                # Calculate normalization factors once per quad
+                data_min = np.min(quad_data)
+                data_max = np.max(quad_data)
+                data_range = data_max - data_min
+                
+                for idx in quad_group.index:
+                    row = int(df.at[idx, "row_from_nn"]) + 10
+                    col = int(df.at[idx, "col_from_nn"]) + 10
+                    
+                    # Extract stamp
+                    stamp = quad_data[row - 10 : row + 10, col - 10 : col + 10].copy()
+                    df.at[idx, "stamp"] = stamp
+                    
+                    # Normalized stamp
+                    if data_range > 0:
+                        norm_stamp = (stamp - data_min) / data_range
+                    else:
+                        norm_stamp = stamp.copy()
+                    df.at[idx, "norm_stamp"] = norm_stamp
+                
+                # Clear reference to help GC
+                del quad_data
+    
+    return df
+
+def add_normsobel_stuff(df, eff=False):
+    df['sobel_norm_stdv_rat'] = np.zeros(len(df))
+    df['sobel_norm_diffmax'] = np.zeros(len(df))
+    
+    
+
+    for i, row in df.iterrows():
+        if eff:
+            normstamp = get_stamp_from_df_eff(i, df, norm=True)
+        else:
+            normstamp = sobels_to_array(row['norm_stamp'])
+        
+        xnorm, ynorm = justxy(normstamp)
+        df['sobel_norm_stdv_rat'].loc[i] = np.std(xnorm)/np.std(ynorm)
+        df['sobel_norm_diffmax'].loc[i] = np.max(xnorm)/np.max(ynorm)
+        del normstamp, xnorm, ynorm
+        gc.collect()
+                                                     
+          
+    return df
+
+
+def sobels_to_array(original):
+    # array = np.zeros((20,20))
+    cleaned = original[1:-1]
+    
+    # Split into rows
+    rows = []
+    current_row = []
+    
+    # Split by brackets to identify rows
+    parts = cleaned.split('[')
+    for part in parts:
+        if not part.strip():
+            continue
+        
+        # Remove closing bracket and split by whitespace
+        part = part.replace(']', '')
+        values = part.split()
+        
+        for val in values:
+            val = val.strip()
+            if val and val != ',':
+                try:
+                    current_row.append(float(val))
+                except ValueError:
+                    continue
+        
+        if len(current_row) == 20:
+            rows.append(current_row)
+            current_row = []
+    
+    return np.array(rows)
+        
+# row['sobels_x'].split()
+
+def justxy(stamp):
+    Lx = sobel(stamp, axis=1)  # column axis
+    Ly = sobel(stamp, axis=0)  # rows axis
+    # sobel_ratio = np.max(Lx) / np.max(Ly)  # we want this to be as large as possible
+    return Lx, Ly
+
+
+
+def inspect_stamp_and_map(df, index, eff=True, posneg=None, size=10, column=None, nn_or_imp="nn", thr=True, star=False):
+    '''
+    for efficiency data
+    '''
+    wid = 10
+    if column!=None:
+        index = df[df[column]==index].index[0]
+    if eff==True:
+        if posneg==None:
+            posneg = df.loc[index, "type"]
+        if posneg=="pos":
+            extension = "_1_implanted_pos.npy"
+            fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/images/'
+            ppath = "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/predsarrays/"
+
+        elif posneg=="neg":
+            extension = "_1_implanted_neg.npy"
+            fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/images/'
+            ppath = "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/predsarrays/"
+        fname = df.loc[index]["filename"] + extension
+    else:
+        posneg = df.loc[index, 'type']
+
+    if nn_or_imp=="nn":
+        fig, ax = plt.subplots(1, 2, figsize=(7,2))
+    else:
+        fig, ax = plt.subplots(1, 3, figsize=(10,2))
+    
+    # print(df.iloc[index]["filename"])
+    if nn_or_imp == "nn":
+        row = int(df.loc[index]["row_from_nn"])+wid
+        col = int(df.loc[index]["col_from_nn"])+wid
+    elif nn_or_imp == "imp":
+        row = int(df.loc[index]["col_from_implant"])
+        col = int(df.loc[index]["row_from_implant"])
+        
+    if eff:
+        path = fpath + fname
+        array = np.load(path)
+        imj = ax[0].imshow(
+                    
+                        array[
+                            row - size : row + size ,
+                            col  - size : col  + size,
+                        ]
+                    
+                    )
+    else:
+        imj = ax[0].imshow(sobels_to_array(df.loc[index, 'stamp']))
+                    
+    nrow, ncol = 3080, 3072 
+    if eff==True:
+        if posneg =="pos":
+            pfile = df.loc[index]["filename"]+"_extraction_predsarray_pos_predsarray.npy"
+            predsarray = np.load(ppath+pfile)
+            pimg = predsarray[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
+        elif posneg=="neg":
+            pfile = df.loc[index]["filename"]+"_extraction_predsarray_neg_predsarray.npy"
+            predsarray = np.load(ppath+pfile)
+            pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
+    else:      
+        path = '/lustre/lrspec/ZTF_data/science_extractions/1020/'
+        pred = df.loc[index]["filename"]
+        extra = '_extraction_predsarray_'+str(df.loc[index,'quad'])+'_predsarray.npy'
+        print(path+pred+extra)
+        predsarray = np.load(path+pred+extra)
+        if posneg=='pos':
+            
+            predsarray = predsarray[:,1]
+        elif posneg=='neg':
+            predsarray = predsarray[:,2]
+        else:
+            print("POSNEG ISSUE")
+        pimg = predsarray.reshape(ncol - 2 * wid, nrow - 2 * wid)
+
+
+
+
+    if thr:
+        ax[1].imshow(
+        
+                    pimg[
+                        col - size  - wid : col + size - wid,
+                        row  - size - wid: row  + size - wid,
+                    ].T>.9999
+                )
+    else:
+        ax[1].imshow(
+        
+                    pimg[
+                        col - size  - wid: col + size - wid,
+                        row  - size - wid: row  + size - wid,
+                    ].T
+                )
+        ax[2].imshow(
+        
+                    pimg[
+                        col - size  - wid: col + size - wid,
+                        row  - size - wid : row  + size - wid,
+                    ].T>.9999
+                )
+        ax[2].set_title("CNN Thresholded")
+    if star==True:
+                    starpos = df.loc[index]['closest_x']
+                    ax[0].scatter(starpos- (col - size  + wid), 10)
+#     pfile_pos = df.iloc[index]["filename"]+"_extraction_predsarray_pos_predsarray.npy"
+#     predsarray_pos = np.load(ppath+pfile_pos)
+#     pimg_pos = predsarray_pos[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
+#     pfile_neg = df.iloc[index]["filename"]+"_extraction_predsarray_neg_predsarray.npy"
+#     predsarray_neg = np.load(ppath+pfile_neg)
+#     pimg_neg = predsarray_neg[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
+#     ax[1].imshow(
+        
+#                     pimg_neg[
+#                         col - size : col + size,
+#                         row  - size : row  + size,
+#                     ].T>.9999
+#                 )
+#     ax[2].imshow(pimg_pos[
+#                         col - size : col + size,
+#                         row  - size : row  + size,
+#                     ].T>.9999
+#                 ) 
+    if eff==True:
+        ax[0].annotate(
+        "Injection",
+        xy=(  df["row_from_implant"].loc[index]-col+size,df["col_from_implant"].loc[index]-row+size),
+        xytext=(size+3*size/4, size/2),  
+        arrowprops=dict(
+            facecolor="red",
+            edgecolor="red",
+            # shrink=1.0,
+            # headlength=5,
+            # headwidth=3,
+        ),
+        color="white",
+        fontsize=10,
+        ha="center",
+        # va="top",
+        rotation=0,
+        zorder=10,
+    )
+        ax[0].set_title("Injected image, Index "+str(index)+ ", A = "+str(df["A_from_implant"].loc[index])+", sig = "+str(df["sig_from_implant"].loc[index]))
+    else:
+        ax[0].set_title("Injected image, Index "+str(index))
+        
+    ax[1].set_title("CNN "+str(posneg)+" prediction")
+    # ax[2].set_title("CNN pos prediction")
+    # print(df["row_from_implant"].iloc[index], col, df["col_from_implant"].iloc[index], row)
+    fig.colorbar(imj, orientation='horizontal')
+    plt.show()
+    
+    
+def normarray(arr):
+    return (arr-np.min(arr))/(np.max(arr)-np.min(arr))
+    
+def inspect_df_w_stamp_color(df, imgsize=10, star=False, clim=None, plot="stamp", norm=False, titlecol=[], twodec=False):
+    """
+    plots the stamps corresponding to detections in a dataframe
+    no limit, so put in df[:100] or something probably to save time
+    """
+    # Define a color palette for different elements
+    colors = ['red', 'blue', 'green', 'darkorange', 'purple', 'brown', 'deeppink', 'gray', 'olive', 'cyan']
+    
+    wid = 10
+    figcols = 5
+    figrows = 1 + len(df) // figcols
+    fig, ax = plt.subplots(figrows, figcols, figsize=(figcols * 1.8, figrows * 1.8))
+    for i in range(figrows):
+        for j in range(figcols):
+            index = figcols * i + j
+            if index < len(df):
+                fname = df.iloc[index]["filename"] + "fits.fz"
+                row = int(df.iloc[index]["row_from_nn"])
+                col = int(df.iloc[index]["col_from_nn"])
+                quad = int(df.iloc[index]["quadrant"])
+                stamp = df.iloc[index][plot]
+                
+                if isinstance(stamp, str):
+                    stamp = sobels_to_array(stamp)
+                
+                if norm:
+                    stamp = normarray(stamp)
+                
+                ax[i, j].imshow(stamp, vmax=clim)
+                
+                if star==True:
+                    starpos = df.iloc[index]['closest_x']
+                    ax[i, j].scatter(starpos - (col - imgsize + wid), 10)
+                
+                ax[i, j].set_axis_off()
+                
+                if titlecol==None or titlecol==[]:
+                    ax[i, j].set_title(str(index))
+                else:
+                    # Build title with proper spacing between colored values
+                    num_values = len(titlecol)
+                    
+                    # Calculate spacing - distribute evenly across the width
+                    if num_values == 1:
+                        positions = [0.5]
+                    else:
+                        # Space them out more for better separation
+                        spacing = 0.8 / (num_values - 1)  # Use 80% of width
+                        positions = [0.1 + i * spacing for i in range(num_values)]
+                    
+                    for idx, title in enumerate(titlecol):
+                        if twodec==False:
+                            if type(df.iloc[index][title])!=str:
+                                value = round(df.iloc[index][title])
+                            else:
+                                value = df.iloc[index][title]
+                        
+                        else:
+                            if type(df.iloc[index][title])!=str:
+                                value = round(df.iloc[index][title]*100)/100
+                            else:
+                                value = df.iloc[index][title]
+                        
+                        color = colors[idx % len(colors)]
+                        
+                        # Place colored text at calculated position
+                        ax[i, j].text(positions[idx], 1.02, str(value),
+                                     transform=ax[i, j].transAxes,
+                                     ha='center', va='bottom',
+                                     fontsize=10, color=color, weight='bold')
+    
+    # Create color-coded suptitle legend
+    if titlecol!=None and titlecol!=[]:
+        from matplotlib.patches import Patch
+        legend_elements = [Patch(facecolor=colors[idx % len(colors)], 
+                                label=title) 
+                          for idx, title in enumerate(titlecol)]
+        fig.legend(handles=legend_elements, loc='upper center', 
+                  ncol=len(titlecol), frameon=False, fontsize=10)
+    
+    plt.tight_layout()
+    plt.show()
+    
+    
+    
+    
+
+# def add_satellite_flag(df, new=True):
+#     df['satellite_flag_2_2_new'] = np.zeros(len(df))
+#     df['satellite_flag_1_7_new'] = np.zeros(len(df))
+#     df['satellite_flag'] = np.zeros(len(df))
+#     if new==True:
+#         for i, row in df.iterrows():            
+#             if row['max_num_consecutive']>2 and row['snr_global_new']>2:
+#                 df.at[i, 'satellite_flag_2_2_new']=1
+#             if row['max_num_consecutive']>1 and row['snr_global_new']>7:
+#                 df.at[i, 'satellite_flag_1_7_new']=1
+#             if df.at[i, 'satellite_flag_2_2_new']==1 and df.at[i, 'satellite_flag_1_7_new']==1:
+#                 df.at[i, 'satellite_flag']=1
+#     else:
+#         for i, row in df.iterrows():            
+#             if row['max_num_consecutive']>2 and row['snr_global']>2:
+#                 df.at[i, 'satellite_flag_2_2_new']=1
+#             if row['max_num_consecutive']>1 and row['snr_global']>7:
+#                 df.at[i, 'satellite_flag_1_7_new']=1
+#             if df.at[i, 'satellite_flag_2_2_new']==1 and df.at[i, 'satellite_flag_1_7_new']==1:
+#                 df.at[i, 'satellite_flag']=1
+#     return df
+
+
+#looking for multiple transients that progress
+#something like - num-consecutive
+
+def add_num_consecutive(df, df_larger=None):
+    '''
+    use df_larger if you want to run this on a subset (df)
+    '''
+    df = df.copy() 
+    if type(df_larger)!=pd.core.frame.DataFrame:
+        print("no df_larger")
+        df_larger=df
+    df["num_in_file_new"] = np.zeros(len(df))
+    df["num_consecutive_up_new"] = np.zeros(len(df))
+    df["num_consecutive_down_new"] = np.zeros(len(df))
+    df["possible_up_indices_new"] = np.zeros(len(df), dtype=object)
+    df["possible_down_indices_new"] = np.zeros(len(df), dtype=object)
+    df["max_num_consecutive_new"] = np.zeros(len(df))
+    for fname in np.unique(df["filename"]):
+        for quad in np.unique(df[df["filename"]==fname]["quadrant"]):
+            # for polarity in np.unique(df[(df["filename"]==fname) * (df["quadrant"]==quad)]['type']):
+            # for i in [1]: #listen i just dont want to get rid of the tab
+            subsection = df[(df["filename"]==fname) * (df["quadrant"]==quad)]#* (df["type"]=='pos')]
+            # subsection = subsection[subsection['detection_size']>10]
+            subsection_of_larger = df_larger[(df_larger["filename"]==fname) * (df_larger["quadrant"]==quad)* (df_larger["sobel_norm_diffmax"]<10)]
+            num_in_file_here = len(df_larger[(df_larger["filename"]==fname) * (df_larger["quadrant"]==quad)]) 
+            # subsection_of_larger = subsection_of_larger[subsection_of_larger['detection_size']>10]
+            
+            if len(subsection_of_larger)<2:
+                    continue #leaves num_consecutive at zero
+            if len(subsection)<1: #this is for if we use a subsection)
+                continue
+            # print(len(subsection))
+            # print("HEY!")
+                                             
+            for index in subsection.index:
+                df.at[index, "num_in_file_new"]=num_in_file_here
+                # print(index)
+                # print(num_in_file_here)
+                # print(df.loc[index]["num_in_file"])
+                
+                original_x = df.loc[index]["closest_x"] #x
+                original_row = df.loc[index]["row_from_nn"] #y
+                num_going_up = 0
+                num_going_down = 0
+                possible_up_indices = []
+                possible_down_indices = []
+                for i, rrow in subsection_of_larger.iterrows():
+                    # print(rrow["col_from_nn"])
+                    # print(original_col)
+                    # if (rrow["col_from_nn"] > original_col) * (rrow["row_from_nn"] > original_row): #if both true
+                    #     num_going_up+=1
+                    #     possible_up_indices.append(i)
+                    # elif (rrow["col_from_nn"] < original_col) * (rrow["row_from_nn"] < original_row):
+                    #     num_going_up+=1
+                    #     possible_up_indices.append(i)
+                    # elif (rrow["col_from_nn"] < original_col) * (rrow["row_from_nn"] > original_row):
+                    #     num_going_down+=1
+                    #     possible_down_indices.append(i)
+                    # elif (rrow["col_from_nn"] > original_col) * (rrow["row_from_nn"] < original_row):
+                    #     num_going_down+=1
+                    #     possible_down_indices.append(i)
+                    if (rrow["closest_x"] > original_x) * (rrow["row_from_nn"] > original_row): #if both true
+                        num_going_up+=1
+                        possible_up_indices.append(i)
+                    elif (rrow["closest_x"] < original_x) * (rrow["row_from_nn"] < original_row):
+                        num_going_up+=1
+                        possible_up_indices.append(i)
+                    elif (rrow["closest_x"] < original_x) * (rrow["row_from_nn"] > original_row):
+                        num_going_down+=1
+                        possible_down_indices.append(i)
+                    elif (rrow["closest_x"] > original_x) * (rrow["row_from_nn"] < original_row):
+                        num_going_down+=1
+                        possible_down_indices.append(i)
+                
+                #okay so first i want to drop ones where they're in the same star
+                df_going_up = subsection_of_larger.loc[possible_up_indices].drop_duplicates(subset="closest_x")
+                df_going_down = subsection_of_larger.loc[possible_down_indices].drop_duplicates(subset="closest_x")
+                df.at[index, "max_num_consecutive_new"] = np.max([len(df_going_up), len(df_going_down)])
+                del df_going_up
+                del df_going_down
+                gc.collect()
+                # print(possible_down_indices)
+                df.at[index, "num_consecutive_up_new"] = num_going_up
+                df.at[index, "num_consecutive_down_new"] = num_going_down
+                df.at[index, "possible_down_indices_new"] = np.array(possible_down_indices)
+                df.at[index, "possible_up_indices_new"] = np.array(possible_up_indices)
+    return df
+                
+                
+        
+        
+def find_dups(df):
+    '''
+    find duplicate transient candidates
+    '''
+    df["dup_indices"] = np.zeros(len(df), dtype=object)
+    df['is_smaller_dup'] = np.zeros(len(df)) 
+    for fname in np.unique(df["filename"]):
+        for quad in np.unique(df[df["filename"]==fname]["quadrant"]):
+            subsection = df[(df["filename"]==fname) * (df["quadrant"]==quad)]
+            for polarity in ['pos','neg']:
+                for index in subsection[subsection['type']==polarity].index:
+                    width = 20 #+ np.round(np.sqrt(subsection.loc[index]['detection_size'])) #removed for better efficiency
+                    original_col = subsection.loc[index]["col_from_nn"] #x
+                    original_row = subsection.loc[index]["row_from_nn"] #y
+                    original_size = subsection.loc[index]["detection_size"]
+                    dup_indices = []
+                    for i, row in subsection[subsection['type']==polarity].iterrows():
+                        if np.abs(original_col-row["col_from_nn"])<=width and np.abs(original_row-row["row_from_nn"])<=width:
+                            if i!=index:
+                                dup_indices.append(i)
+                            if row["detection_size"]<original_size:
+                                df.at[i, 'is_smaller_dup']=1
+                            elif row["detection_size"]==original_size:
+                                if np.abs(row['Diff'])>np.abs(subsection.loc[index]["Diff"]):
+                                    df.at[i, 'is_smaller_dup']=1
+                                elif np.abs(row['Diff'])==np.abs(subsection.loc[index]["Diff"]):
+                                    if i>index: #this one is just random
+                                        df.at[i, 'is_smaller_dup']=1
+                    df.at[index, "dup_indices"] = np.array(dup_indices)
+    return df
+
+
+def add_num_in_file_in_star(df):
+    df['num_in_file_in_star']=np.zeros(len(df))
+    for filename, group in df.groupby('filename'):     
+        for quadnum, quadgroup in group.groupby('quadrant'):
+            for starx, stargroup in quadgroup.groupby('closest_x'):
+                num_in_file_in_star = len(stargroup)
+                for index in stargroup.index:
+                    df.at[index, 'num_in_file_in_star']=num_in_file_in_star
+    return df
+
+
+def add_sat_and_proximity(df, eff=False):
+    df = df.copy()
+    df['sat_flag'] = np.zeros(len(df))
+    df['sat_neighbor'] = np.zeros(len(df))
+    for i, row in df.iterrows():
+        if eff==True:
+            if ((row['sobel_norm_diffmax']<5)*(row['max_num_consecutive_new']>1)*(row['snr_local']>=2)):
+                df.loc[i,'sat_flag']=1
+        else:
+            if ((row['sobel_norm_diffmax']<5)*(row['max_num_consecutive_new']>1)*(row['snr_local_new']>=2)):
+                df.loc[i,'sat_flag']=1
+    for i, satrow in df[df['sat_flag']==1].iterrows():
+        fname = satrow['filename']
+        quad = satrow['quadrant']
+        subsection = df[(df["filename"]==fname) * (df["quadrant"]==quad)]
+        original_col = satrow["col_from_nn"]
+        original_row = satrow["row_from_nn"]
+        for i, neighborrow in subsection.iterrows():
+            if (np.abs(neighborrow["col_from_nn"] - original_col)<40) * (np.abs(neighborrow["row_from_nn"] - original_row)<40):
+                df.loc[i,'sat_neighbor']=1
+    return df
+
+def match_stars_eff(df):
+    closest_xs = np.zeros(len(df))
+    closest_ys= np.zeros(len(df))
+    Diffs = np.zeros(len(df))
+    brightness_ranking = np.zeros(len(df))
+    xy_path = "/lustre/lrspec/ZTF_data/corrected_coordinates/xy_arrays/"
+    quad = str(1)
+    i=0
+    for index, rrow in df.iterrows():
+
+        xy_file = xy_path+df.loc[index]['filename'][:35]+quad+".fits"
+        with fits.open(xy_file) as hdul_xy:
+            col = rrow["col_from_nn"]
+            target_x = col+10
+            # print(xy_file)
+            data = hdul_xy[1].data  
+            stored_x = data["X"][:25]  # Column "X"
+            stored_y = data["Y"][:25]
+            closest_idx = np.argmin(np.abs(stored_x - target_x))
+            
+            closest_x, closest_y = stored_x[closest_idx], stored_y[closest_idx]
+            closest_xs[i]=closest_x
+            closest_ys[i]=closest_y
+            Diffs[i]=stored_x[closest_idx] - target_x
+            brightness_ranking[i]= closest_idx
+            # print(closest_idx)
+            # print(df.loc[index]['brightness_ranking'])
+            i+=1 #yes there is a better way to do this
+    df['closest_x'] = closest_xs
+    df['closest_y']= closest_ys
+    df['Diff'] = Diffs
+    df['brightness_ranking'] = brightness_ranking
+    return df
