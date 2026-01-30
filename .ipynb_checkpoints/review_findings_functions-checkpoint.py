@@ -7,7 +7,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.express as px
 import gc  # garbage collector
-
+import scipy.ndimage as snm
+import precision_recall as pr
+import get_postage_stamps as gpsf
 
 
 
@@ -2479,7 +2481,7 @@ def justxy(stamp):
 
 
 
-def inspect_stamp_and_map(df, index, eff=True, posneg=None, size=10, column=None, nn_or_imp="nn", thr=True, star=False):
+def inspect_stamp_and_map(df, index, eff=True, posneg=None, size=10, column=None, nn_or_imp="nn", thr=True, star=False, direcname='1020'):
     '''
     for efficiency data
     '''
@@ -2540,7 +2542,7 @@ def inspect_stamp_and_map(df, index, eff=True, posneg=None, size=10, column=None
             predsarray = np.load(ppath+pfile)
             pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
     else:      
-        path = '/lustre/lrspec/ZTF_data/science_extractions/1020/'
+        path = '/lustre/lrspec/ZTF_data/science_extractions/'+direcname+'/'
         pred = df.loc[index]["filename"]
         extra = '_extraction_predsarray_'+str(df.loc[index,'quad'])+'_predsarray.npy'
         print(path+pred+extra)
@@ -2934,3 +2936,191 @@ def match_stars_eff(df):
     df['Diff'] = Diffs
     df['brightness_ranking'] = brightness_ranking
     return df
+
+
+def make_obj_list(predsarray, abst_thr, fname, quad):
+    '''
+    get dataframe from cnn predictiions
+    '''
+    nrow, ncol = 3080, 3072
+    wid=10
+    pimg_pos = predsarray[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
+    # pimg_bg = predsarray[:, 0].reshape(ncol - 2 * wid, nrow - 2 * wid)
+    # pimg_streak = predsarray[:, 4].reshape(ncol - 2 * wid, nrow - 2 * wid)
+    pimg_neg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
+    pimg_cr = predsarray[:, 3].reshape(ncol - 2 * wid, nrow - 2 * wid)
+
+    pimg_both = pimg_pos + pimg_neg
+
+    structure = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]  # for what counts as one object
+
+    # FOR POS
+    thrdet = pimg_pos > abst_thr
+    threshed = thrdet.T  # it takes the transposed pimg
+
+    labs, nlabs = snm.label(threshed, structure)
+    loc_list_pos = snm.center_of_mass(threshed, labs, range(1, nlabs + 1))
+    loc_list_pos = np.array(loc_list_pos)
+    objsizes_pos = pr.get_objsizes(labs, nlabs)
+
+    fnames = np.full(len(loc_list_pos), fname)
+    poses = np.full(len(loc_list_pos), "pos")
+    if len(loc_list_pos) > 0:
+        poslist = (
+            np.vstack(
+                (fnames, poses, loc_list_pos[:, 0], loc_list_pos[:, 1], objsizes_pos)
+            )
+        ).T
+    else:
+        poslist = ["hi", "pos", 0, 0, 0]
+
+    # FOR NEG
+    thrdet = pimg_neg > abst_thr
+    threshed = thrdet.T  # it takes the transposed pimg
+
+    labs, nlabs = snm.label(threshed, structure)
+    loc_list_neg = snm.center_of_mass(threshed, labs, range(1, nlabs + 1))
+    loc_list_neg = np.array(loc_list_neg)
+
+    objsizes_neg = pr.get_objsizes(labs, nlabs)
+
+    fnames = np.full(len(loc_list_neg), fname)
+    negs = np.full(len(loc_list_neg), "neg")
+
+    if len(loc_list_neg) > 0:
+        neglist = (
+            np.vstack(
+                (fnames, negs, loc_list_neg[:, 0], loc_list_neg[:, 1], objsizes_neg)
+            )
+        ).T
+
+    # FOR CRS
+    thrdet = pimg_cr > abst_thr
+    threshed = thrdet.T  # it takes the transposed pimg
+
+    labs, nlabs = snm.label(threshed, structure)
+    loc_list_cr = snm.center_of_mass(threshed, labs, range(1, nlabs + 1))
+    loc_list_cr = np.array(loc_list_cr)
+
+    objsizes_cr = pr.get_objsizes(labs, nlabs)
+
+    fnames = np.full(len(loc_list_cr), fname)
+    if len(loc_list_cr) > 0:
+        crs = np.full(len(loc_list_cr), "cr")
+        # print(np.shape(fnames))
+        # print(np.shape(crs))
+        # print(np.shape(loc_list_cr[:,0]))
+        # print(np.shape(loc_list_cr[:,1]))
+        # print(np.shape(objsizes_cr))
+        crlist = (
+            np.vstack((fnames, crs, loc_list_cr[:, 0], loc_list_cr[:, 1], objsizes_cr))
+        ).T
+    else:
+        crlist = 0
+    # FOR BOTH
+    thrdet = pimg_both > abst_thr
+    threshed = thrdet.T  # it takes the transposed pimg
+
+    labs, nlabs = snm.label(threshed, structure)
+    loc_list_both = snm.center_of_mass(threshed, labs, range(1, nlabs + 1))
+    loc_list_both = np.array(loc_list_both)
+
+    objsizes_both = pr.get_objsizes(labs, nlabs)
+
+    fnames = np.full(len(loc_list_both), fname)
+    boths = np.full(len(loc_list_both), "both")
+    if len(loc_list_both) > 0:
+        bothlist = (
+            np.vstack(
+                (fnames, boths, loc_list_both[:, 0], loc_list_both[:, 1], objsizes_both)
+            )
+        ).T
+    
+
+    del pimg_cr
+    del pimg_pos
+    del pimg_neg
+    # del pimg_bg
+    # del pimg_streak
+    del thrdet
+    del loc_list_pos
+    del loc_list_neg
+    del objsizes_pos
+    del objsizes_neg
+    del labs
+    del threshed
+    gc.collect()
+
+    # np.save(path, n_loc_size_ray_b)
+    if crlist != 0:
+        listlist = np.vstack((poslist, neglist, crlist, bothlist))
+    else:
+        listlist = np.vstack((poslist, neglist, bothlist))
+    alllist = pd.DataFrame(listlist)
+    
+    
+
+    alllist.rename(
+        columns={
+            0: "filename",
+            1: "type",
+            2: "row_from_nn",
+            3: "col_from_nn",
+            4: "detection_size",
+        },
+        inplace=True,
+    )
+    alllist['quad'] = np.full(len(alllist), quad)
+
+    alllist[["row_from_nn", "col_from_nn", "detection_size"]] = alllist[
+        ["row_from_nn", "col_from_nn", "detection_size"]
+    ].apply(pd.to_numeric)
+    # np.save(path, n_loc_size_ray_b)
+    return alllist
+
+
+def save_predsarrays(model, wid, path):
+    """
+    This function will take an image and a cnn model and return an array
+    of the transients found in that image.
+    image: np array
+    model: cnn model
+    abst_thr: absolute probability threshold to consider a transient probability as a transient
+    mult_thr: comparative probability threshold to consider a transient probability as a transient
+    (aka the trans prob has to be x times larger than (streak prob + backg prob)
+    wid: desired postage stamp width
+    bg_thresh: thresh to consider the average background on a column to be "background",
+    something like .1, used as criterion for determining cosmic rays
+    path: path to save the array
+
+    returns (and saves): array of length (number of transient detections),
+    with elements of (detection row, detection column), transient detection size,
+    realness (aka not-cosmic-ray)
+    so a list of tuples, then an int, then the probability that its column is a streak
+    to flag as a probable cosmic ray
+    """
+
+    nrow, ncol = 3080, 3072
+    print("getting postage stamps")
+    stamps = gpsf.get_postage_stamps_full(image, 10)
+    stampbatches = np.array_split(
+        stamps, stamps.shape[0] // 20000
+    )  # (image.shape[0] - 2 * wid) )
+    # I WANNA CHANGE THIS TO SPEED HIM UP
+    # so to be faster there should be less batches
+    # so i want the second argument to be smaller
+    # so i want the denomitor of the second argument to be larger
+    preds = []
+    print("getting predictions:")
+    for stamps in stampbatches:#tqdm(           # getting all the predictions. does not renormalize
+        pred_l = model.predict_on_batch(stamps)
+        preds.append(pred_l)
+    predsarray = np.concatenate(preds)
+    # i would like to save the predsarrays i think. for reproducibility
+    np.save(path + "_predsarray", predsarray)  
+    del stamps
+    del stampbatches
+    del preds
+    del predsarray
+    gc.collect()
+    return  # predsarray
