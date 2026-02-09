@@ -5,7 +5,7 @@
 
 
 """
-NOW WITH FLIP
+
 
 copied from cnn_training_morestamps, now with more classes and more stamps !
 
@@ -39,9 +39,10 @@ from tqdm.auto import tqdm
 import os
 from pylab import cm
 import matplotlib as mpl
+import sys
 
 
-# In[2]:
+save_name = sys.argv[1]
 
 
 plt.rcParams["figure.figsize"] = (10, 7)
@@ -445,21 +446,21 @@ print(f"Average Validation accuracy : {avg_val_acc:.4f}")
 # In[ ]:
 
 
-model.save("CNN_jan26_dup")
+model.save("CNN_"+save_name)
 
 
 # In[16]:
 
 
-np.save("/home/3155/dup_jan26_loss_history", history.history["loss"])
+np.save("/home/3155/"+save_name+"_loss_history", history.history["loss"])
 
 
 # In[17]:
 
 
-np.save("/home/3155/dup_jan26_val_loss_history", history.history["val_loss"])
-np.save("/home/3155/dup_jan26_accuracy_history", history.history["accuracy"])
-np.save("/home/3155/dup_jan26_val_accuracy_history", history.history["val_accuracy"])
+np.save("/home/3155/"+save_name+"_val_loss_history", history.history["val_loss"])
+np.save("/home/3155/"+save_name+"_accuracy_history", history.history["accuracy"])
+np.save("/home/3155/"+save_name+"_val_accuracy_history", history.history["val_accuracy"])
 
 
 # In[ ]:

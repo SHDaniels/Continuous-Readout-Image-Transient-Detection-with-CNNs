@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.signal import find_peaks
 
 
 def gaussian_event(ys, M, sig, A, original_values):
@@ -268,7 +269,7 @@ def implant_transient_full_image(image, streak_x_val, center_value_y, intensity,
     #     if averages[index]>.01:
     #         column_indices.append(index)
 
-    maxcol = np.argmax(averages[streak_x_val - 3 : streak_x_val + 3]) + streak_x_val - 3
+    maxcol = np.argmax(averages[streak_x_val - 5 : streak_x_val + 5]) + streak_x_val - 5 #FEB 2026 was 3 now 5
     maxval = averages[maxcol]
     column_indices.append(maxcol)
     column_indices.append(maxcol + 1)
@@ -296,7 +297,6 @@ def implant_transient_full_image(image, streak_x_val, center_value_y, intensity,
             break
         val = newval
         column_indices.append(index)
-    print(column_indices)
 
     # now gaussianning all relevant columns
 
@@ -317,14 +317,14 @@ def implant_transient_full_image(image, streak_x_val, center_value_y, intensity,
     # adding back background
     gaussianed_image = gaussianed_image + np.full(np.shape(image), background)
     if norm==False:
-        return gaussianed_image
+        return gaussianed_image, maxcol
     
     # should renormalize it
     norm_gi = (gaussianed_image - np.min(gaussianed_image)) / (
         np.max(gaussianed_image) - np.min(gaussianed_image)
     )
     if norm==True:
-        return norm_gi
+        return norm_gi, maxcol
 
 
 
@@ -339,24 +339,32 @@ def implant_10_transients(
     y_counter = counter
     transient_info = []  # empty list for adding info for implanted transients
 
-    # short list of where brightest streaks are
-    averages = np.average(image[:3040, :3040], axis=0)
-    sorted = np.argsort(averages)[-20:]
-    doublesorted = np.sort(sorted)
-    shortlist = []
-    for i, el in enumerate(doublesorted):
-        ihatenumbers = np.hstack((doublesorted, [0]))
-        if ihatenumbers[i + 1] != el + 1:
-            shortlist.append(el)
+    # # short list of where brightest streaks are
+    # averages = np.average(image[:3040, :3040], axis=0)
+    # sorted = np.argsort(averages)[-20:]
+    # doublesorted = np.sort(sorted)
+    # shortlist = []
+    # for i, el in enumerate(doublesorted):
+    #     ihatenumbers = np.hstack((doublesorted, [0]))
+    #     if ihatenumbers[i + 1] != el + 1:
+    #         shortlist.append(el)
 
-    implanted = image
-    for streak_x_val in shortlist[:10]:
+    implanted = image    
+    averages = np.average(image[20:-20,20:-20], axis=0) #cut off edges
+    peaks, heights = find_peaks(averages, height=(None, None))
+    min_height = np.sort(heights['peak_heights'])[-10]
+    tall_map = heights['peak_heights']>=min_height
+    tall_peaks = peaks[tall_map]+20
+    
+    
+
+    for streak_x_val in tall_peaks:
         center_value_y = center_values[y_counter]
         intensity = intensities[intensity_counter]
         sigma = sigmas[intensity_counter]
         y_counter += 1
         intensity_counter += 1
-        implanted = implant_transient_full_image(
+        implanted, maxcol = implant_transient_full_image(
             implanted, streak_x_val, center_value_y, intensity, sigma, norm
         )
         # print("intensity "+str(intensity))
@@ -364,7 +372,7 @@ def implant_10_transients(
         if plot == True:
             show_streak(implanted, streak_x_val, center_value_y)
         trans_xcoord_ycoord_intensity_sigma = (
-            streak_x_val,
+            maxcol, #WAS STREAK X VAL FEB 2026
             center_value_y,
             intensity,
             sigma,
@@ -406,35 +414,42 @@ def get_10_trans_stamps(image, sigmas, intensities, center_values, counter, plot
     stamp_info = []  # empty list for adding info for implanted transients
 
     # short list of where brightest streaks are
-    averages = np.average(image, axis=0)
-    sorted = np.argsort(averages)[-20:]
-    doublesorted = np.sort(sorted)
-    shortlist = []
-    for i, el in enumerate(doublesorted):
-        ihatenumbers = np.hstack((doublesorted, [0]))
-        if ihatenumbers[i + 1] != el + 1 and el > 10 and el < (len(averages) - 10):
-            shortlist.append(el)
+    # averages = np.average(image, axis=0)
+#     sorted = np.argsort(averages)[-20:]
+#     doublesorted = np.sort(sorted)
+#     shortlist = []
+#     for i, el in enumerate(doublesorted):
+#         ihatenumbers = np.hstack((doublesorted, [0]))
+#         if (ihatenumbers[i + 1] != el + 1 and el > 10 and el < (len(averages) - 10):
 
+#             shortlist.append(el)
+
+    averages = np.average(image[20:-20,20:-20], axis=0) #cut off edges
+    peaks, heights = find_peaks(averages, height=(None, None))
+    min_height = np.sort(heights['peak_heights'])[-10]
+    tall_map = heights['peak_heights']>=min_height
+    tall_peaks = peaks[tall_map]+20
+    
     implanted = image
     stamps_implanted = []
-    for streak_x_val in shortlist[:10]:
+    for streak_x_val in tall_peaks:
         center_value_y = center_values[y_counter]
         intensity = intensities[intensity_counter]
         sigma = sigmas[intensity_counter]
         y_counter += 1
         intensity_counter += 1
-        implanted = implant_transient_full_image(
-            implanted, streak_x_val, center_value_y, intensity, sigma
+        implanted, maxcol = implant_transient_full_image(
+            implanted, streak_x_val, center_value_y, intensity, sigma, norm=True
         )
         # print("intensity "+str(intensity))
         # print("xval "+str(streak_x_val))
         if plot == True:
             # show_streak(implanted, streak_x_val, center_value_y)
-            get_stamp(implanted, streak_x_val, center_value_y, plot=True)
-        intensity_sigma = (intensity, sigma, streak_x_val,center_value_y)
+            get_stamp(implanted, maxcol, center_value_y, plot=True)
+        intensity_sigma = (intensity, sigma, maxcol,center_value_y)
         print("stamp info: ", intensity_sigma)
         stamp_info.append(intensity_sigma)
-        stamp = get_stamp(implanted, streak_x_val, center_value_y, plot=False)
+        stamp = get_stamp(implanted, maxcol, center_value_y, plot=False)
         stamps_implanted.append(stamp)
     return stamps_implanted, stamp_info
 
@@ -448,18 +463,24 @@ def get_10_streak_stamps(image, center_values, counter, plot=False):
     y_counter = counter
 
     # short list of where brightest streaks are
-    averages = np.average(image, axis=0)
-    sorted = np.argsort(averages)[-20:]
-    doublesorted = np.sort(sorted)
-    shortlist = []
-    for i, el in enumerate(doublesorted):
-        ihatenumbers = np.hstack((doublesorted, [0]))
-        if ihatenumbers[i + 1] != el + 1 and el > 10 and el < (len(averages) - 10):
-            shortlist.append(el)
+#     averages = np.average(image, axis=0)
+#     sorted = np.argsort(averages)[-20:]
+#     doublesorted = np.sort(sorted)
+#     shortlist = []
+#     for i, el in enumerate(doublesorted):
+#         ihatenumbers = np.hstack((doublesorted, [0]))
+#         if ihatenumbers[i + 1] != el + 1 and el > 10 and el < (len(averages) - 10):
+#             shortlist.append(el)
+            
+    averages = np.average(image[20:-20,20:-20], axis=0) #cut off edges
+    peaks, heights = find_peaks(averages, height=(None, None))
+    min_height = np.sort(heights['peak_heights'])[-10]
+    tall_map = heights['peak_heights']>=min_height
+    tall_peaks = peaks[tall_map]+20    
 
     implanted = image
     stamps_implanted = []
-    for streak_x_val in shortlist[:10]:
+    for streak_x_val in tall_peaks:
         center_value_y = center_values[y_counter]
         y_counter += 1
         intensity_counter += 1
@@ -492,16 +513,22 @@ def get_10_background_stamps(image, center_values, counter, plot=False):
     y_counter = counter
 
     # short list of where brightest streaks are
-    averages = np.average(image, axis=0)
-    sorted = np.argsort(averages)[-70:]
-    doublesorted = np.sort(sorted)
-    shortlist = []
-    for i, el in enumerate(doublesorted):
-        ihatenumbers = np.hstack((doublesorted, [0]))
-        if ihatenumbers[i + 1] != el + 1 and el > 10 and el < (len(averages) - 10):
-            shortlist.append(el)
+    # averages = np.average(image, axis=0)
+    # sorted = np.argsort(averages)[-70:]
+    # doublesorted = np.sort(sorted)
+    # shortlist = []
+    # for i, el in enumerate(doublesorted):
+    #     ihatenumbers = np.hstack((doublesorted, [0]))
+    #     if ihatenumbers[i + 1] != el + 1 and el > 10 and el < (len(averages) - 10):
+    #         shortlist.append(el)
+    averages = np.average(image[20:-20,20:-20], axis=0) #cut off edges
+    peaks, heights = find_peaks(averages, height=(None, None))
+    min_height = np.sort(heights['peak_heights'])[-40] #allowing more for this one
+    tall_map = heights['peak_heights']>=min_height
+    tall_peaks = peaks[tall_map]+20    
 
-    int_vals = intermediate_values(shortlist)
+
+    int_vals = intermediate_values(tall_peaks)
 
     implanted = image
     stamps_bg = []
@@ -514,3 +541,50 @@ def get_10_background_stamps(image, center_values, counter, plot=False):
         stamp = get_stamp(implanted, bg_x_val, center_value_y, plot=False)
         stamps_bg.append(stamp)
     return stamps_bg
+
+
+def get_intensities_pos_feb(total_desired, seed):
+    """
+    the positive intensities
+    o	For the center of the transient, choose to have at least half the transient in the image
+    (randint between -5 and 26 will be the center of the gaussian for size 10 events)
+    o	intensities of (multiplicative factors) [2, 1.5, 1.4, 1.3, 1.2, 1.15, 1.1, 1.05, 1.01, 1.005]
+    """
+    np.random.seed(
+        seed
+    )  # so that i can keep the same random - last time it was seed 21. before that it was 20
+
+    
+    # Define intensity values
+    intensity_values = [2, 1.5, 1.4, 1.3, 1.2, 1.15, 1.1, 1.05, 1.01, 1.005]
+    
+    # Create evenly split arrays for each intensity
+    evensplit = total_desired // len(intensity_values) + 1 # to make sure there is enough i will put one extra of each
+    intensities = np.repeat(intensity_values, evensplit)
+    
+    # Shuffle and return
+    np.random.shuffle(intensities) # this shuffles the array in place
+    return intensities
+
+def get_intensities_neg_feb(total_desired, seed):
+    """
+    the neg intensities
+    o	For the center of the transient, choose to have at least half the transient in the image
+    (randint between -5 and 26 will be the center of the gaussian for size 10 events)
+    o	intensities of (multiplicative factors) [.995, .99, .95, .9, .8, .7, .6, .5]
+    """
+    np.random.seed(
+        seed
+    )  # so that i can keep the same random - last time it was seed 21. before that it was 20
+
+    
+    # Define intensity values
+    intensity_values = [.995, .99, .95, .9, .8, .7, .6, .5]
+    
+    # Create evenly split arrays for each intensity
+    evensplit = total_desired // len(intensity_values) + 1 # to make sure there is enough i will put one extra of each
+    intensities = np.repeat(intensity_values, evensplit)
+    
+    # Shuffle and return
+    np.random.shuffle(intensities) # this shuffles the array in place
+    return intensities

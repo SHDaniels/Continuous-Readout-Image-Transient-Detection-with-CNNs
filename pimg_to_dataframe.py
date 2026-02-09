@@ -8,21 +8,36 @@ import os
 import numpy as np
 import pandas as pd
 import gc
+import sys
+
+fpath_extractions_saveds = [
+        "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/predsarrays_"+sys.argv[1]+"/", "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/predsarrays_"+sys.argv[1]+"/",
+]
 
 
-save_direc = "1020jan26"
+# save_direc = "1020jan26"
 
-fpath_extractions_saved = "/lustre/lrspec/ZTF_data/science_extractions/" + save_direc + "/"
-
-
+# fpath_extractions_saved = "/lustre/lrspec/ZTF_data/science_extractions/" + save_direc + "/"
 
 
-if 1==1: #idk bestie i dont wanna delete the tab in all of them
+
+# fpath_extractions_saveds = [
+#         "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/presdarrays_flipped/", "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/presdarrays_flipped/"
+# ]
+# "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/presdarrays_both/",
+
+# "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/presdarrays_both/",  
+# fpath_extractions_saveds = [
+#         "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/predsarrays_dup/", "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/predsarrays_dup/",
+# ]
+
+
+for fpath_extractions_saved in fpath_extractions_saveds: 
     wid = 10
     abst_thr = .9999
-
-
-    for i, file in enumerate(os.listdir(fpath_extractions_saved)):
+    
+    files = [f for f in os.listdir(fpath_extractions_saved) if f.endswith("predsarray.npy")] 
+    for i, file in enumerate(files):
         image_filename = os.fsdecode(file)
         filename_start = image_filename[:40]
         quad = image_filename[-16]
@@ -34,11 +49,13 @@ if 1==1: #idk bestie i dont wanna delete the tab in all of them
             print("skipping ", filename_start)
             continue
 
-        print(filename_start)
+        print(file)
 
         try: 
             predsarray = np.load(fpath_extractions_saved+image_filename, allow_pickle=True)
         except: #
+            print("didn't load")
+            print(fpath_extractions_saved+image_filename)
             continue
 
         alllist = rff.make_obj_list(predsarray, abst_thr, filename_start, quad)

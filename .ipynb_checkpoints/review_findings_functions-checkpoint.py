@@ -2481,7 +2481,7 @@ def justxy(stamp):
 
 
 
-def inspect_stamp_and_map(df, index, eff=True, posneg=None, size=10, column=None, nn_or_imp="nn", thr=True, star=False, direcname='1020'):
+def inspect_stamp_and_map(df, index, eff=True, posneg=None, size=10, column=None, nn_or_imp="nn", thr=True, star=False, direcname='1020', pdirec="predsarrays"):
     '''
     for efficiency data
     '''
@@ -2491,15 +2491,19 @@ def inspect_stamp_and_map(df, index, eff=True, posneg=None, size=10, column=None
     if eff==True:
         if posneg==None:
             posneg = df.loc[index, "type"]
+            print("Need posneg if you want to see the correct pimg...")
         if posneg=="pos":
             extension = "_1_implanted_pos.npy"
             fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/images/'
-            ppath = "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/predsarrays/"
+            ppath = "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/"+pdirec+"/"
 
         elif posneg=="neg":
             extension = "_1_implanted_neg.npy"
             fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/images/'
-            ppath = "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/predsarrays/"
+            ppath = "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/"+pdirec+"/"
+        
+        else:
+            print("POSNEG ISSUE")
         fname = df.loc[index]["filename"] + extension
     else:
         posneg = df.loc[index, 'type']
@@ -2518,7 +2522,7 @@ def inspect_stamp_and_map(df, index, eff=True, posneg=None, size=10, column=None
         col = int(df.loc[index]["row_from_implant"])
         
     if eff:
-        path = fpath + fname
+        path = fpath + fname 
         array = np.load(path)
         imj = ax[0].imshow(
                     
@@ -2533,28 +2537,39 @@ def inspect_stamp_and_map(df, index, eff=True, posneg=None, size=10, column=None
                     
     nrow, ncol = 3080, 3072 
     if eff==True:
-        if posneg =="pos":
-            pfile = df.loc[index]["filename"]+"_extraction_predsarray_pos_predsarray.npy"
+        if pdirec=="predsarrays":
+            if posneg =="pos":
+                pfile = df.loc[index]["filename"]+"_extraction_predsarray_pos_predsarray.npy"
+                predsarray = np.load(ppath+pfile)
+                if df.loc[index, "type"]=="pos":
+                    pimg = predsarray[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
+                else:
+                    pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
+            elif posneg=="neg":
+                pfile = df.loc[index]["filename"]+"_extraction_predsarray_neg_predsarray.npy"
+                predsarray = np.load(ppath+pfile)
+                if df.loc[index, "type"]=="pos":
+                    pimg = predsarray[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
+                else:
+                    pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
+        else:
+            pfile = df.loc[index]["filename"]+"_extraction_predsarray_1_predsarray.npy"
             predsarray = np.load(ppath+pfile)
-            pimg = predsarray[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
-        elif posneg=="neg":
-            pfile = df.loc[index]["filename"]+"_extraction_predsarray_neg_predsarray.npy"
-            predsarray = np.load(ppath+pfile)
-            pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
+            if df.loc[index, "type"]=="pos":
+                pimg = predsarray[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
+            else:
+                pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
     else:      
         path = '/lustre/lrspec/ZTF_data/science_extractions/'+direcname+'/'
         pred = df.loc[index]["filename"]
         extra = '_extraction_predsarray_'+str(df.loc[index,'quad'])+'_predsarray.npy'
         print(path+pred+extra)
         predsarray = np.load(path+pred+extra)
-        if posneg=='pos':
-            
-            predsarray = predsarray[:,1]
-        elif posneg=='neg':
-            predsarray = predsarray[:,2]
+        if df.loc[index, "type"]=="pos":
+            pimg = predsarray[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
         else:
-            print("POSNEG ISSUE")
-        pimg = predsarray.reshape(ncol - 2 * wid, nrow - 2 * wid)
+            pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
+
 
 
 
@@ -2627,7 +2642,7 @@ def inspect_stamp_and_map(df, index, eff=True, posneg=None, size=10, column=None
     else:
         ax[0].set_title("Injected image, Index "+str(index))
         
-    ax[1].set_title("CNN "+str(posneg)+" prediction")
+    ax[1].set_title("CNN "+str(df.loc[index, "type"])+" prediction")
     # ax[2].set_title("CNN pos prediction")
     # print(df["row_from_implant"].iloc[index], col, df["col_from_implant"].iloc[index], row)
     fig.colorbar(imj, orientation='horizontal')
@@ -3052,7 +3067,8 @@ def make_obj_list(predsarray, abst_thr, fname, quad):
     gc.collect()
 
     # np.save(path, n_loc_size_ray_b)
-    if crlist != 0:
+
+    if isinstance(crlist, np.ndarray):
         listlist = np.vstack((poslist, neglist, crlist, bothlist))
     else:
         listlist = np.vstack((poslist, neglist, bothlist))
@@ -3079,7 +3095,7 @@ def make_obj_list(predsarray, abst_thr, fname, quad):
     return alllist
 
 
-def save_predsarrays(model, wid, path):
+def save_predsarrays(image, model, wid, path):
     """
     This function will take an image and a cnn model and return an array
     of the transients found in that image.
@@ -3124,3 +3140,205 @@ def save_predsarrays(model, wid, path):
     del predsarray
     gc.collect()
     return  # predsarray
+
+def match_implantations_eff(df_original, posneg):
+    df = df_original.copy()
+    if posneg=="neg":
+        extension="_neg"
+    elif posneg=="pos":
+        extension="_pos"
+    row_from_implant = {}
+    col_from_implant = {}
+    A_from_implant = {}
+    sig_from_implant = {}
+    dist_to_implant = {}
+    # i=0
+    for filename, group in df.groupby('filename'):     
+        infopath = (
+            "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_"+posneg+"/info/"
+            + str(filename)
+            + "_"
+            + str(1)
+            + "_implanted_info"+extension+".npy"
+        )
+        info = np.load(infopath)
+        for idx in group.index:
+            distance_y = np.abs(df.loc[idx,"row_from_nn"] + 10 - info[:,1])
+            distance_x = np.abs(df.loc[idx,"col_from_nn"] + 10 - info[:,0])
+            total = np.sqrt(distance_y**2 + distance_x**2)
+            closest_idx_info = np.argmin(total)
+            dist_to_implant[idx] = total[closest_idx_info]
+            row_from_implant[idx] = info[closest_idx_info][1]
+            col_from_implant[idx] = info[closest_idx_info][0]
+            A_from_implant[idx] = info[closest_idx_info][2]
+            sig_from_implant[idx] = info[closest_idx_info][3]
+        
+    df["dist_to_implant"] = df.index.map(dist_to_implant)
+    df["row_from_implant"] = df.index.map(row_from_implant)
+    df["col_from_implant"] = df.index.map(col_from_implant)
+    df["A_from_implant"] = df.index.map(A_from_implant)
+    df["sig_from_implant"] = df.index.map(sig_from_implant)
+    return df
+
+
+def inspect_stamp_and_all_maps(df, index, eff=True, posneg=None, size=10, column=None, nn_or_imp="nn", thr=True, star=False, override=False):
+    '''
+    for efficiency data
+    '''
+    pdirecs = ["predsarrays/",
+                "presdarrays_flipped/",
+                "presdarrays_both/",
+                "predsarrays_dup/"]
+    names = ['Original', 'Flipped', 'Both', 'Duplicate']
+    ppaths = []
+    wid = 10
+    if column!=None:
+        index = df[df[column]==index].index[0]
+    if eff==True:
+        
+        if posneg==None:
+            posneg = df.loc[index, "type"]
+            print("Need posneg if you want to see the correct pimg...")
+        if posneg=="pos":
+            extension = "_1_implanted_pos.npy"
+            fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/images/'
+            for pdirec in pdirecs:
+                ppaths.append("/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/"+pdirec)
+
+        elif posneg=="neg":
+            extension = "_1_implanted_neg.npy"
+            fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/images/'
+            for pdirec in pdirecs:
+                ppaths.append("/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/"+pdirec)
+        
+        else:
+            print("POSNEG ISSUE")
+        fname = df.loc[index]["filename"] + extension
+    else:
+        posneg = df.loc[index, 'type']
+
+
+    fig, ax = plt.subplots(1, 5, figsize=(15,2))
+    
+    # print(df.iloc[index]["filename"])
+    if nn_or_imp == "nn":
+        row = int(df.loc[index]["row_from_nn"])+wid
+        col = int(df.loc[index]["col_from_nn"])+wid
+    elif nn_or_imp == "imp":
+        row = int(df.loc[index]["col_from_implant"])
+        col = int(df.loc[index]["row_from_implant"])
+        
+    if eff:
+        path = fpath + fname 
+        array = np.load(path)
+        imj = ax[0].imshow(
+                    
+                        array[
+                            row - size : row + size ,
+                            col  - size : col  + size,
+                        ]
+                    
+                    )
+    else:
+        imj = ax[0].imshow(sobels_to_array(df.loc[index, 'stamp']))
+                    
+    nrow, ncol = 3080, 3072 
+    pimgs = []
+    for i, pdirec in enumerate(pdirecs):
+        if pdirec=="predsarrays/":
+            if posneg =="pos":
+                pfile = df.loc[index]["filename"]+"_extraction_predsarray_pos_predsarray.npy"
+                predsarray = np.load(ppaths[i]+pfile)
+                if override==False:
+                    if df.loc[index, "type"]=="pos":
+                        pimg = predsarray[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
+                    else:
+                        pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
+                elif override=="pos":
+                    pimg = predsarray[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
+                elif override=="neg":
+                    pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
+            elif posneg=="neg":
+                pfile = df.loc[index]["filename"]+"_extraction_predsarray_neg_predsarray.npy"
+                predsarray = np.load(ppaths[i]+pfile)
+                if override==False:
+                    if df.loc[index, "type"]=="pos":
+                        pimg = predsarray[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
+                    else:
+                        pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
+                elif override=="pos":
+                    pimg = predsarray[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
+                elif override=="neg":
+                    pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
+                    
+        else:
+            pfile = df.loc[index]["filename"]+"_extraction_predsarray_1_predsarray.npy"
+            predsarray = np.load(ppaths[i]+pfile)
+            if override==False:
+                if df.loc[index, "type"]=="pos":
+                    pimg = predsarray[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
+                else:
+                    pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
+            elif override=="pos":
+                pimg = predsarray[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
+            elif override=="neg":
+                pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
+        pimgs.append(pimg)
+
+    for num, pimg in enumerate(pimgs):
+        if thr:
+            ax[num+1].imshow(
+            
+                        pimg[
+                            col - size  - wid : col + size - wid,
+                            row  - size - wid: row  + size - wid,
+                        ].T>.9999, cmap='viridis'
+                    )
+        else:
+            ax[num+1].imshow(
+            
+                        pimg[
+                            col - size  - wid: col + size - wid,
+                            row  - size - wid: row  + size - wid,
+                        ].T, cmap='viridis'
+                    )
+        if override==False:
+            ax[num+1].set_title(names[num]+" CNN "+str(df.loc[index, "type"])+" prediction")
+        else:
+            ax[num+1].set_title(names[num]+" CNN "+override+" prediction")
+    if star==True:
+                    starpos = df.loc[index]['closest_x']
+                    ax[0].scatter(starpos- (col - size  + wid), 10)
+
+#                 ) 
+    if eff==True:
+        ax[0].annotate(
+        "Injection",
+        xy=(  df["row_from_implant"].loc[index]-col+size,df["col_from_implant"].loc[index]-row+size),
+        xytext=(size+3*size/4, size/2),  
+        arrowprops=dict(
+            facecolor="red",
+            edgecolor="red",
+            # shrink=1.0,
+            # headlength=5,
+            # headwidth=3,
+        ),
+        color="white",
+        fontsize=10,
+        ha="center",
+        # va="top",
+        rotation=0,
+        zorder=10,
+    )
+        if df.loc[index, 'dist_to_implant']<40:
+            ax[0].set_title("Injected image, Index "+str(index)+ "\nA = "+str(df["A_from_implant"].loc[index])+", sig = "+str(df["sig_from_implant"].loc[index]))
+        else:
+            ax[0].set_title("Injected image, Index "+str(index)+"\nno nearby implantation")
+    else:
+        ax[0].set_title("Injected image, Index "+str(index))
+        
+    
+    # ax[2].set_title("CNN pos prediction")
+    # print(df["row_from_implant"].iloc[index], col, df["col_from_implant"].iloc[index], row)
+    fig.colorbar(imj, orientation='horizontal')
+    plt.show()

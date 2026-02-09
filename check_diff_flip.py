@@ -25,7 +25,7 @@ folder_path = "/lustre/lrspec/ZTF_data/science_extractions/" + save_direc + "/"
 
 
 # In[26]:
-
+concat_list = []
 
 files = [f for f in os.listdir(folder_path) if f.endswith('alllist')]  # Adjust this to your file format
 for file in files:
@@ -41,6 +41,7 @@ for file in files:
     
     xy_path = "/lustre/lrspec/ZTF_data/corrected_coordinates/xy_arrays/"
     xy_file = xy_path+file[:-15]+quad+".fits"
+    
     
     data_list = []
     
@@ -61,16 +62,15 @@ for file in files:
                 # plt.scatter(20,20)
                 # plt.show()    
                     # Retrieve the closest (x, y) match
+            
             data_list.append({"filename": rrow["filename"], "quad":quad, "type":rrow["type"],"row_from_nn":rrow["row_from_nn"],  
                               "col_from_nn":rrow["col_from_nn"], "detection_size":rrow["detection_size"],
-                             "closest_x": closest_x, "closest_y":closest_y, "Diff":(closest_x-target_x)})
-            dframe = pd.DataFrame(data_list)
+                             "closest_x": closest_x, "closest_y":closest_y, "Diff":(closest_x-target_x), "brightness_ranking":closest_idx})
+    dframe = pd.DataFrame(data_list)
             # dframe.to_csv(newpath+file+"_matched_corrected")
-            if counter>0:
-                concatenated_df = pd.concat([concatenated_df,dframe], ignore_index=True)
-            else:
-                concatenated_df = dframe
-            counter+=1
+    concat_list.append(dframe)
+
+concatenated_df = pd.concat(concat_list, ignore_index=True)
 
 
 # In[29]:
@@ -81,11 +81,11 @@ concatenated_df['quadrant']=concatenated_df['quad']
 
 # In[30]:
 
-concatenated_df.to_csv(folder_path+"_intermediate_df_flipped")
+concatenated_df.to_csv(folder_path+"intermediate_df_flipped")
 
 concatenated_df = rff.add_num_in_file_in_star(concatenated_df)
 
-concatenated_df.to_csv(folder_path+"_intermediate_df_flipped")
+concatenated_df.to_csv(folder_path+"intermediate_df_flipped")
 # In[34]:
 
 
@@ -95,7 +95,6 @@ concatenated_df.to_csv(folder_path+"_intermediate_df_flipped")
 # In[4]:
 
 
-rff.match_stars_eff(concatenated_df)
+# rff.match_stars_eff(concatenated_df)
 
 
-concatenated_df.to_csv(folder_path+"_intermediate_df_flipped")
