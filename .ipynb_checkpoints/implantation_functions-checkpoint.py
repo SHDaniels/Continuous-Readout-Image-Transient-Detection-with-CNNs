@@ -588,3 +588,131 @@ def get_intensities_neg_feb(total_desired, seed):
     # Shuffle and return
     np.random.shuffle(intensities) # this shuffles the array in place
     return intensities
+
+
+def get_10_trans_stamps_w_offcenter(image, sigmas, intensities, center_values, counter, plot=False):
+    """
+    mmmmmm thinking
+
+    """
+    intensity_counter = counter
+    y_counter = counter
+    
+    averages = np.average(image[50:-50,50:-50], axis=0) #cut off edges
+    peaks, heights = find_peaks(averages, height=(None, None))
+    min_height = np.sort(heights['peak_heights'])[-10]
+    tall_map = heights['peak_heights']>=min_height
+    tall_peaks = peaks[tall_map]+50
+    
+    implanted = image
+    stamps_implanted = []
+    background_stamps = []
+    stamp_info = []  # empty list for adding info for implanted transients
+    background_info = []
+    for streak_x_val in tall_peaks:
+        center_value_y = center_values[y_counter]
+        intensity = intensities[intensity_counter]
+        sigma = sigmas[intensity_counter]
+        implanted, maxcol = implant_transient_full_image(
+            implanted, streak_x_val, center_value_y, intensity, sigma, norm=True
+        )
+        # print("intensity "+str(intensity))
+        # print("xval "+str(streak_x_val))
+        intensity_sigma = (intensity, sigma, maxcol,center_value_y)
+        stamp_info.append((intensity, sigma, maxcol,center_value_y, 0))
+        stamp = get_stamp(implanted, maxcol, center_value_y, plot=plot)
+        stamps_implanted.append(stamp)
+        offset_true = [1,2]
+        for offset in np.concatenate((offset_true, np.negative(offset_true))):
+            stamp = get_stamp(implanted, maxcol+offset, center_value_y, plot=plot)
+            stamps_implanted.append(stamp)
+            stamp_info.append((intensity, sigma, maxcol,center_value_y, offset))
+        offset_false = np.arange(4,25)
+        for offset in np.concatenate((offset_false, np.negative(offset_false))):
+            stamp = get_stamp(implanted, maxcol+offset, center_value_y, plot=plot)
+            background_stamps.append(stamp)
+            background_info.append((intensity, sigma, maxcol,center_value_y, offset))   
+        y_counter += 1
+        intensity_counter += 1
+    return stamps_implanted, stamp_info, background_stamps, background_info
+
+
+
+
+def get_10_streak_stamps_w_offcenter(image, center_values, counter, plot=False):
+    """
+    mmmmmm thinking
+
+    """
+
+    y_counter = counter
+
+
+    averages = np.average(image[50:-50,50:-50], axis=0) #cut off edges
+    peaks, heights = find_peaks(averages, height=(None, None))
+    min_height = np.sort(heights['peak_heights'])[-10]
+    tall_map = heights['peak_heights']>=min_height
+    tall_peaks = peaks[tall_map]+50
+    
+    
+    implanted = image
+    stamps_implanted = []
+    background_stamps = []
+    stamp_info = []  # empty list for adding info for implanted transients
+    background_info = []
+    intensity=0
+    sigma=0
+    for streak_x_val in tall_peaks:
+        center_value_y = center_values[y_counter]
+
+        maxcol = get_maxcol_for_streak(
+            implanted, streak_x_val, center_value_y
+        )
+        # print("intensity "+str(intensity))
+        # print("xval "+str(streak_x_val))
+        intensity_sigma = (intensity, sigma, maxcol,center_value_y)
+        stamp_info.append((intensity, sigma, maxcol,center_value_y, 0))
+        stamp = get_stamp(implanted, maxcol, center_value_y, plot=plot)
+        stamps_implanted.append(stamp)
+        offset_true = [1,2]
+        for offset in np.concatenate((offset_true, np.negative(offset_true))):
+            stamp = get_stamp(implanted, maxcol+offset, center_value_y, plot=plot)
+            stamps_implanted.append(stamp)
+            stamp_info.append((intensity, sigma, maxcol,center_value_y, offset))
+        offset_false = np.arange(4,25)
+        for offset in np.concatenate((offset_false, np.negative(offset_false))):
+            stamp = get_stamp(implanted, maxcol+offset, center_value_y, plot=plot)
+            background_stamps.append(stamp)
+            background_info.append((intensity, sigma, maxcol,center_value_y, offset))  
+        y_counter += 1
+    return stamps_implanted, stamp_info, background_stamps, background_info
+
+
+
+def get_maxcol_for_streak(image, streak_x_val, center_value_y):
+    """
+    this function takes an image and implants a gaussian brightening event in the given columns (in a streak).
+    inputs -
+    image: an array of brightness values
+    streak_x_val: location of the streak - x coordinate
+    center_value_y: the y value to center the gaussian at
+    sigma: the sigma of the gaussian
+    intensity: the maximum brightening of the gaussian
+    returns:  gaussianed_image, normalized array with brightening in the streak
+    """
+
+
+
+    # choosing which columns are part of the streak (to implant transient in)
+    # careful: there could be two streaks in the image, i want the one that is the most centered
+    # for now we're just taking the columns around the streak
+    mid = streak_x_val  # the middle column - truncated. so the lower one if even number of columns
+
+    averages = np.average(
+        image[center_value_y - 10 : center_value_y + 10], axis=0
+    )
+    # there should be some criteria for the gradient perhaps
+    # failing that, just that it's bigger than .05
+
+    maxcol = np.argmax(averages[streak_x_val - 5 : streak_x_val + 5]) + streak_x_val - 5 #FEB 2026 was 3 now 5
+    return maxcol

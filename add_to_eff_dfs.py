@@ -20,10 +20,10 @@ import glob  # i don't know if there is a better way to do this but this was the
 import review_findings_functions as rff
 import os
 
-
+import sys
 
 # df_names = ["original", "flipped", "both", "dup"]
-df_names = ["dup"]
+df_names = [sys.argv[1]]
 
 df_neg_base_path = "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/"
 df_pos_base_path = "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/"
@@ -32,7 +32,7 @@ df_pos_base_path = "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implan
 #                 "presdarrays_flipped/",
 #                 "presdarrays_both/",
 #                 "predsarrays_dup/"]
-df_paths = [ "predsarrays_dup/"]
+df_paths = [ "predsarrays_"+sys.argv[1]+"/"]
 
 for i, name in enumerate(df_names):
     df = pd.read_csv(f"{df_neg_base_path+df_paths[i]}"+"df_concat")

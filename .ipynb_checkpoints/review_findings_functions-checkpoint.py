@@ -680,7 +680,7 @@ def reduce_number_in_file(df, max=1):
 #     return diffinstd
 
 
-def inspect_df_with_quadrant(df, direcname, imgsize=10, star=False, clim=None, titlecol=None):
+def inspect_df_with_quadrant(df, imgsize=10, star=False, clim=None, titlecol=None):
     """
     plots the stamps corresponding to detections in a dataframe
     no limit, so put in df[:100] or something probably to save time
@@ -698,9 +698,7 @@ def inspect_df_with_quadrant(df, direcname, imgsize=10, star=False, clim=None, t
                 col = int(df.iloc[index]["col_from_nn"])
                 quad = int(df.iloc[index]["quadrant"])
                 fpath = (
-                    "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
-                    + direcname
-                    + "_minus_extras/"
+                    "/lustre/lrspec/ZTF_data/2022/1020/"
                 )
                 path = fpath + fname
                 hdul = fits.open(path)

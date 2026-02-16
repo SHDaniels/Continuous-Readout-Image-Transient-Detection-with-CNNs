@@ -32,7 +32,6 @@ import tensorflow as tf
 from tensorflow import keras
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical
-from sklearn.metrics import ConfusionMatrixDisplay, classification_report
 from astropy.io import fits
 import scipy.ndimage as snm
 from tqdm.auto import tqdm
@@ -40,6 +39,7 @@ import os
 from pylab import cm
 import matplotlib as mpl
 import sys
+from sklearn.model_selection import KFold
 
 
 save_name = sys.argv[1]
@@ -202,32 +202,6 @@ for i, file in enumerate(os.listdir(fpath_bg)):
 # neg_stamps = all_bg_stamps
 
 
-# In[13]:
-
-
-np.shape(all_bg_stamps)
-
-
-# In[14]:
-
-
-fig, ax = plt.subplots(10, 10)
-for i in range(10):
-    for h in range(10):
-        # print(i, h)
-        ax[i, h].plot(np.sum(all_pos_stamps[i * 10 + h], axis=1))
-        # ax[i, h].imshow(all_neg_stamps[i*10 + h])
-        ax[i, h].axis("off")
-fig.show()
-
-
-# In[16]:
-
-
-all_pos_stamps_info[:, 0]
-
-
-# In[19]:
 
 
 # Combine all features
@@ -237,14 +211,7 @@ feat = np.concatenate(
 )
 
 
-# Split features into training and testing sets once
-feat_tr, feat_te = train_test_split(feat, random_state=302)
-
-# Reshape features for the CNN
-feat_tr = feat_tr.reshape(feat_tr.shape[0], feat_tr.shape[1], feat_tr.shape[2], 1)
-feat_te = feat_te.reshape(feat_te.shape[0], feat_te.shape[1], feat_te.shape[2], 1)
-
-# Process bness and lens separately after the split
+# Process bness and lens
 bness = np.concatenate(
     (
         np.full(len(all_bg_stamps), 0),
@@ -275,33 +242,31 @@ targ = np.concatenate(
     )
 )
 
-# Split targets and additional variables
-bness_tr, bness_te = train_test_split(bness, random_state=302)
-lens_tr, lens_te = train_test_split(lens, random_state=302)
-targ_tr, targ_te = train_test_split(targ, random_state=302)
+
+# Split features into training and testing sets once
+feat_tr, feat_te, bness_tr, bness_te, lens_tr, lens_te, targ_tr, targ_te = train_test_split(feat, bness, lens, targ, random_state=302)
+
+
+
+# Reshape features for the CNN
+feat_tr = feat_tr.reshape(feat_tr.shape[0], feat_tr.shape[1], feat_tr.shape[2], 1)
+feat_te = feat_te.reshape(feat_te.shape[0], feat_te.shape[1], feat_te.shape[2], 1)
+
+
+# # Split targets and additional variables
+# bness_tr, bness_te = train_test_split(bness, random_state=302)
+# lens_tr, lens_te = train_test_split(lens, random_state=302)
+# targ_tr, targ_te = train_test_split(targ, random_state=302)
 
 # One-hot encode the target variable
 targ_tr_one_hot = to_categorical(targ_tr, num_classes=5)
 targ_te_one_hot = to_categorical(targ_te, num_classes=5)
 
 
-# In[20]:
 
 
-targ_tr_one_hot
 
 
-# In[22]:
-
-
-lens_tr
-
-
-# In[25]:
-
-
-from sklearn.model_selection import KFold
-import numpy as np
 
 
 # adaptive learning rate
