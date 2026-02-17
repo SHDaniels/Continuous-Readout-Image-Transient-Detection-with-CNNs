@@ -241,7 +241,7 @@ for i, file in enumerate(os.listdir(image_path)):
     image_filename = os.fsdecode(file)
     image_filename_full = image_path + image_filename
     print(image_filename)
-    info_filename = image_filename[:-4] + "_info.npy"
+    info_filename = image_filename[:50]  + "info_"+image_filename[50:]
     info_filename_full = info_path + info_filename
     trans = np.load(image_filename_full)
     trans_arr = np.array(trans)
@@ -261,173 +261,143 @@ for i, file in enumerate(os.listdir(image_path)):
         all_bg_stamps_info = np.concatenate((all_bg_stamps_info, infos_arr), axis=0)
 
 
-#STREAKS       
-# Get unique transient identifiers (first 5 columns now)
-transient_ids = np.unique(all_streak_stamps_info[:, :5], axis=0)
-
-# Split the transient IDs
-train_ids, test_ids = train_test_split(
-    transient_ids, 
-    train_size=int(57400/6/5),
-    random_state=301
-)
-
-# Create a mask for training data
-train_mask = np.isin(
-    all_streak_stamps_info[:, :5].view([('', all_streak_stamps_info.dtype)] * 5),
-    train_ids.view([('', train_ids.dtype)] * 5)
-)
-
-# Split your stamps
-streak_use = all_streak_stamps[train_mask.flatten()]
-# streak_test = all_streak_stamps[~train_mask.flatten()]
-
-streak_info_use = all_streak_stamps_info[train_mask.flatten()]
-# streak_test_info = all_streak_stamps_info[~train_mask.flatten()]
-
-#BACKGROUND     
-# Get unique transient identifiers (first 5 columns now)
-transient_ids = np.unique(all_bg_stamps_info[:, :5], axis=0)
-
-# Split the transient IDs
-train_ids, test_ids = train_test_split(
-    transient_ids, 
-    train_size=int(57400/3/5),
-    random_state=302
-)
-
-# Create a mask for training data
-train_mask = np.isin(
-    all_bg_stamps_info[:, :5].view([('', all_bg_stamps_info.dtype)] * 5),
-    train_ids.view([('', train_ids.dtype)] * 5)
-)
-
-# Split your stamps
-bg_use = all_bg_stamps[train_mask.flatten()]
-# streak_test = all_streak_stamps[~train_mask.flatten()]
-
-bg_info_use = all_bg_stamps_info[train_mask.flatten()]
-# streak_test_info = all_streak_stamps_info[~train_mask.flatten()]
 
 
-#POS     
-# Get unique transient identifiers (first 5 columns now)
-transient_ids = np.unique(all_pos_stamps_info[:, :5], axis=0)
-
-# Split the transient IDs
-train_ids, test_ids = train_test_split(
-    transient_ids, 
-    train_size=int(57400/6/5),
-    random_state=303
-)
-
-# Create a mask for training data
-train_mask = np.isin(
-    all_pos_stamps_info[:, :5].view([('', all_pos_stamps_info.dtype)] * 5),
-    train_ids.view([('', train_ids.dtype)] * 5)
-)
-
-# Split your stamps
-pos_use = all_pos_stamps[train_mask.flatten()]
-# streak_test = all_streak_stamps[~train_mask.flatten()]
-
-# pos_train_use = all_pos_stamps_info[train_mask.flatten()]
-# streak_test_info = all_streak_stamps_info[~train_mask.flatten()]
-
-bness_pos_use = all_pos_stamps_info[:, 0][train_mask.flatten()]
-
-lens_pos_use = all_pos_stamps_info[:, 1][train_mask.flatten()]
-# bg_use, bg_extra = train_test_split(all_bg_stamps, train_size=int(57400/3), random_state=301) #train size = ones we're using
-
-# pos_use, pos_extra, bness_pos_use, bness_pos_extra, lens_pos_use, lens_pos_extra = train_test_split(all_pos_stamps, 
-#                                                                                                    all_pos_stamps_info[:, 0], 
-#                                                                                                    all_pos_stamps_info[:, 1],  
-#                                                                                                    train_size=int(57400/6),
-#                                                                                                    random_state=303)
-# neg_use, neg_extra, bness_neg_use, bness_neg_extra, lens_neg_use, lens_neg_extra = train_test_split(all_neg_stamps, 
-#                                                                                                    all_neg_stamps_info[:, 0], 
-#                                                                                                    all_neg_stamps_info[:, 1],  
-#                                                                                                    train_size=int(57400/6),
-#                                                                                                    random_state=304)
-# streaks_use, streaks_extra = train_test_split(all_streak_stamps,
-#                                               train_size=int(57400/6),
-#                                               random_state=305) #was 304 when everything was divided by 2 instead of 6
-
-
-
-def split_stamps(stamps, info, train_size, random_state, return_test=False):
-    transient_ids = np.unique(info[:, :5], axis=0)
-
-    # Split the transient IDs
-    train_ids, test_ids = train_test_split(
-        transient_ids, 
-        train_size=int(train_size/5),
-        random_state=random_state
-    )
+def split_stamps(stamps, info, train_size, random_state, return_test=False, numinid=5, numthesame=5, return_mask=False):
+    transient_ids = np.unique(info[:, :numinid], axis=0)
+    if train_size==.75:
+            # Split the transient IDs
+        train_ids, test_ids = train_test_split(
+            transient_ids, 
+            train_size=train_size,
+            random_state=random_state
+        )
+    else:
+        # Split the transient IDs
+        train_ids, test_ids = train_test_split(
+            transient_ids, 
+            train_size=int(train_size/numthesame),
+            random_state=random_state
+        )
 
     # Create a mask for training data
     train_mask = np.isin(
-        info[:, :5].view([('', info.dtype)] * 5),
-        train_ids.view([('', train_ids.dtype)] * 5)
+        info[:, :numinid].view([('', info.dtype)] * numinid),
+        train_ids.view([('', train_ids.dtype)] * numinid)
     )
-    
+    if return_mask:
+        return train_mask.flatten()
     # Split your stamps
     stamps_use = stamps[train_mask.flatten()]
-    bness_use = info[:, 0][train_mask.flatten()]
-    lens_use = info[:, 1][train_mask.flatten()]
+    bness_use = info[:, 1][train_mask.flatten()]
+    lens_use = info[:, 2][train_mask.flatten()]
     if return_test:
         return stamps_use, bness_use, lens_use, stamps[~train_mask.flatten()], info[:, 0][~train_mask.flatten()], info[:, 1][~train_mask.flatten()] #train, test
     else:
-        return stamps_use, bness_use, lens_use
-
-    
-neg_use, bness_neg_use, lens_neg_use = split_stamps(all_neg_stamps, all_neg_stamps_info, 57400/6, random_state=304, return_test=False)
+        return stamps_use, bness_use, lens_use, info[train_mask.flatten()]
     
 
+pos_use, bness_pos_use, lens_pos_use, info_use_pos = split_stamps(all_pos_stamps, all_pos_stamps_info, 57400/6, random_state=301, return_test=False)
+
+neg_use, bness_neg_use, lens_neg_use,info_use_neg = split_stamps(all_neg_stamps, all_neg_stamps_info, 57400/6, random_state=302, return_test=False)
+   
+streaks_use, ignore, ignore2, info_use_streak = split_stamps(all_streak_stamps, all_streak_stamps_info, 57400/6, random_state=303, return_test=False)
+
+bg_use, ignore, ignore2, info_use_bg = split_stamps(all_bg_stamps, all_bg_stamps_info, 57400/3, random_state=304, return_test=False)
+  
+
+    
+
+pos_train, bness_train_pos, lens_train_pos, pos_test, bness_test_pos,lens_test_pos = split_stamps(pos_use, info_use_pos, .75, random_state=301, return_test=True)
+neg_train, bness_train_neg, lens_train_neg, neg_test, bness_test_neg,lens_test_neg = split_stamps(neg_use, info_use_neg, .75, random_state=302, return_test=True)
+streak_train, ignore, ignore, streak_test, ignore,ignore = split_stamps(streaks_use, info_use_streak, .75, random_state=303, return_test=True)
+bg_train, bness_train, lens_train, bg_test, bness_test,lens_test = split_stamps(bg_use, info_use_bg, .75, random_state=304, return_test=True)
+
+cr_train, cr_test = train_test_split(all_cr_stamps, random_state=305)
 
 
+# Combine stamps and labels
+all_train_stamps = np.concatenate([bg_train, pos_train, neg_train, cr_train, streak_train], axis=0)
+all_test_stamps = np.concatenate([bg_test, pos_test, neg_test, cr_test, streak_test], axis=0)
+
+# Create labels (e.g. 1=streak, 0=bg)
+streak_train_labels = np.ones(len(bg_train), dtype=int)
+bg_train_labels = np.zeros(len(bg_train), dtype=int)
+all_train_labels = np.concatenate([np.zeros(len(bg_train), dtype=int), 
+                                   np.full(len(pos_train), 1),
+                                 np.full(len(neg_train), 2),
+                                 np.full(len(cr_train), 3),
+                                 np.full(len(streak_train), 4)])
+
+
+all_test_labels = np.concatenate([np.zeros(len(bg_test), dtype=int), 
+                                   np.full(len(pos_test), 1),
+                                 np.full(len(neg_test), 2),
+                                 np.full(len(cr_test), 3),
+                                 np.full(len(streak_test), 4)])
+
+# # Also combine info if you need it
+# all_train_info = np.concatenate([streak_train_info, bg_train_info], axis=0)
+# all_test_info = np.concatenate([streak_test_info, bg_test_info], axis=0)
 
 # Process bness and lens
-bness = np.concatenate(
+bness_train = np.concatenate(
     (
-        np.full(len(bg_use), 0),
-        bness_pos_use,
-        bness_neg_use,
-        np.full(len(all_cr_stamps), 0),
-        np.full(len(streaks_use), 0),
+        np.full(len(bg_train), 0.),
+        bness_train_pos,
+        bness_train_neg,
+        np.full(len(cr_train), 0.),
+        np.full(len(streak_train), 0.),
     )
 )
 
-lens = np.concatenate(
+lens_train = np.concatenate(
     (
-        np.full(len(bg_use), 0),
-        lens_pos_use,
-        lens_neg_use,
-        np.full(len(all_cr_stamps), 0),
-        np.full(len(streaks_use), 0),
+        np.full(len(bg_train), 0.),
+        lens_train_pos,
+        lens_train_neg,
+        np.full(len(cr_train), 0.),
+        np.full(len(streak_train), 0.),
     )
 )
 
-targ = np.concatenate(
+# Process bness and lens
+bness_test = np.concatenate(
     (
-        np.full(len(bg_use), 0),
-        np.full(len(pos_use), 1),
-        np.full(len(neg_use), 2),
-        np.full(len(all_cr_stamps), 3),
-        np.full(len(streaks_use), 4),
+        np.full(len(bg_test), 0.),
+        bness_test_pos,
+        bness_test_neg,
+        np.full(len(cr_test), 0.),
+        np.full(len(streak_test), 0.),
     )
 )
 
-
-# Combine all features
-feat = np.concatenate(
-    (bg_use, pos_use, neg_use, all_cr_stamps, streaks_use),
-    axis=0,
+lens_test = np.concatenate(
+    (
+        np.full(len(bg_test), 0.),
+        lens_test_pos,
+        lens_test_neg,
+        np.full(len(cr_test), 0.),
+        np.full(len(streak_test), 0.),
+    )
 )
 
+# Shuffle using a shared permutation index
+train_perm = np.random.default_rng(seed=301).permutation(len(all_train_stamps))
+test_perm = np.random.default_rng(seed=301).permutation(len(all_test_stamps))
 
-# Split features into training and testing sets once
-feat_tr, feat_te, bness_tr, bness_te, lens_tr, lens_te, targ_tr, targ_te = train_test_split(feat, bness, lens, targ, random_state=302)
+feat_tr = all_train_stamps[train_perm]
+targ_tr = all_train_labels[train_perm]
+bness_tr   = bness_train[train_perm]
+lens_tr = lens_train[train_perm]
+
+feat_te = all_test_stamps[test_perm]
+targ_te = all_test_labels[test_perm]
+bness_te  = bness_test[test_perm]
+lens_te  = lens_test[test_perm]
+
+print(f"Train: {len(all_train_stamps)} stamps, {all_train_labels.sum()} streaks, {(all_train_labels==0).sum()} bg")
+print(f"Test:  {len(all_test_stamps)} stamps, {all_test_labels.sum()} streaks, {(all_test_labels==0).sum()} bg")
 
 
 

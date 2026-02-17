@@ -265,7 +265,7 @@ def get_sobel_ratio(stamp):
     return sobel_ratio, Lx, Ly
 
 
-def get_stamp_from_df(index, direcname, df, norm=True, quad=None):
+def get_stamp_from_df(index, df, direcname=None, norm=True, quad=None, addrow=0, addcol=0):
     """
     returns a 20x20 numpy array of brightnesses centered around the detection
     located at index of dataframe df
@@ -274,15 +274,13 @@ def get_stamp_from_df(index, direcname, df, norm=True, quad=None):
     norm=False has it in terms of counts
     """
     fname = df.loc[index]["filename"] + "fits.fz"
-    row = int(df.loc[index]["row_from_nn"]) + 10
-    col = int(df.loc[index]["col_from_nn"]) + 10
+    row = int(df.loc[index]["row_from_nn"]) + 10 + addrow
+    col = int(df.loc[index]["col_from_nn"]) + 10 + addcol
     if quad==None:
         quad = int(df.loc[index]["quadrant"])
     # if direcname == "0820":
     fpath = (
-        "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
-        + direcname
-        + "_minus_extras/"
+        "/lustre/lrspec/ZTF_data/2022/1020/"
     )
     # else:
     # fpath = "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"+direcname+"/"
