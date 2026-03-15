@@ -10,7 +10,8 @@ import gc  # garbage collector
 import scipy.ndimage as snm
 import precision_recall as pr
 import get_postage_stamps as gpsf
-
+from sklearn.metrics import ConfusionMatrixDisplay
+import seaborn as sns
 
 
 def getdf(direcname):
@@ -265,7 +266,7 @@ def get_sobel_ratio(stamp):
     return sobel_ratio, Lx, Ly
 
 
-def get_stamp_from_df(index, df, direcname=None, norm=True, quad=None, addrow=0, addcol=0):
+def get_stamp_from_df(index, df, direcname="2022/1020/", norm=True, quad=None, addrow=0, addcol=0, iloc=False):
     """
     returns a 20x20 numpy array of brightnesses centered around the detection
     located at index of dataframe df
@@ -273,14 +274,21 @@ def get_stamp_from_df(index, df, direcname=None, norm=True, quad=None, addrow=0,
     norm=True has the image normalized (not the stamp, the entire image)
     norm=False has it in terms of counts
     """
-    fname = df.loc[index]["filename"] + "fits.fz"
-    row = int(df.loc[index]["row_from_nn"]) + 10 + addrow
-    col = int(df.loc[index]["col_from_nn"]) + 10 + addcol
-    if quad==None:
-        quad = int(df.loc[index]["quadrant"])
+    if iloc==False:
+        fname = df.loc[index]["filename"] + "fits.fz"
+        row = int(df.loc[index]["row_from_nn"]) + 10 + addrow
+        col = int(df.loc[index]["col_from_nn"]) + 10 + addcol
+        if quad==None:
+            quad = int(df.loc[index]["quadrant"])
+    elif iloc==True:
+        fname = df.iloc[index]["filename"] + "fits.fz"
+        row = int(df.iloc[index]["row_from_nn"]) + 10 + addrow
+        col = int(df.iloc[index]["col_from_nn"]) + 10 + addcol
+        if quad==None:
+            quad = int(df.iloc[index]["quadrant"])        
     # if direcname == "0820":
     fpath = (
-        "/lustre/lrspec/ZTF_data/2022/1020/"
+        "/lustre/lrspec/ZTF_data/"+direcname
     )
     # else:
     # fpath = "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"+direcname+"/"
@@ -2477,7 +2485,7 @@ def justxy(stamp):
 
 
 
-def inspect_stamp_and_map(df, index, eff=True, posneg=None, size=10, column=None, nn_or_imp="nn", thr=True, star=False, direcname='1020', pdirec="predsarrays"):
+def inspect_stamp_and_map(df, index, eff=True, neweff="new_eff_data/", posneg=None, size=10, column=None, nn_or_imp="nn", thr=True, star=False, direcname='1020', pdirec="predsarrays"):
     '''
     for efficiency data
     '''
@@ -2490,13 +2498,19 @@ def inspect_stamp_and_map(df, index, eff=True, posneg=None, size=10, column=None
             print("Need posneg if you want to see the correct pimg...")
         if posneg=="pos":
             extension = "_1_implanted_pos.npy"
-            fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/images/'
-            ppath = "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/"+pdirec+"/"
+            if neweff=="new_eff_data/":
+                extension = "_"+str(df.loc[index, "quad"])+".npy"
+            
+            fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/'+neweff+'full_image_implantations_pos/images/'
+            ppath = "/lustre/lrspec/ZTF_data/efficiency_testing/"+neweff+"full_image_implantations_pos/"+pdirec+"/"
 
         elif posneg=="neg":
             extension = "_1_implanted_neg.npy"
-            fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/images/'
-            ppath = "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/"+pdirec+"/"
+            if neweff=="new_eff_data/":
+                extension = "_"+str(df.loc[index, "quad"])+".npy"
+            
+            fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/'+neweff+'full_image_implantations_neg/images/'
+            ppath = "/lustre/lrspec/ZTF_data/efficiency_testing/"+neweff+"full_image_implantations_neg/"+pdirec+"/"
         
         else:
             print("POSNEG ISSUE")
@@ -2550,6 +2564,8 @@ def inspect_stamp_and_map(df, index, eff=True, posneg=None, size=10, column=None
                     pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
         else:
             pfile = df.loc[index]["filename"]+"_extraction_predsarray_1_predsarray.npy"
+            if neweff=="new_eff_data/":
+                pfile = df.loc[index]["filename"]+"_" + str(df.loc[index]["quad"])+"_predsarray.npy"
             predsarray = np.load(ppath+pfile)
             if df.loc[index, "type"]=="pos":
                 pimg = predsarray[:, 1].reshape(ncol - 2 * wid, nrow - 2 * wid)
@@ -3067,7 +3083,10 @@ def make_obj_list(predsarray, abst_thr, fname, quad):
     if isinstance(crlist, np.ndarray):
         listlist = np.vstack((poslist, neglist, crlist, bothlist))
     else:
-        listlist = np.vstack((poslist, neglist, bothlist))
+        if isinstance(neglist, np.ndarray):
+            listlist = np.vstack((poslist, neglist, bothlist))
+        else:
+            listlist = np.vstack((poslist, bothlist))
     alllist = pd.DataFrame(listlist)
     
     
@@ -3137,7 +3156,7 @@ def save_predsarrays(image, model, wid, path):
     gc.collect()
     return  # predsarray
 
-def match_implantations_eff(df_original, posneg):
+def match_implantations_eff(df_original, posneg, neweff=""):
     df = df_original.copy()
     if posneg=="neg":
         extension="_neg"
@@ -3149,13 +3168,20 @@ def match_implantations_eff(df_original, posneg):
     sig_from_implant = {}
     dist_to_implant = {}
     # i=0
-    for filename, group in df.groupby('filename'):     
+    for (filename, quad), group in df.groupby(['filename', 'quad']):   
+        # for quad in np.unique(group['quad']):
+            # infopath = (
+            #     "/lustre/lrspec/ZTF_data/efficiency_testing/"+neweff+"full_image_implantations_"+posneg+"/info/"
+            #     + str(filename)
+            #     + "_"
+            #     + str(1)
+            #     + "_implanted_info"+extension+".npy"
+            # )
         infopath = (
-            "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_"+posneg+"/info/"
+            "/lustre/lrspec/ZTF_data/efficiency_testing/"+neweff+"full_image_implantations_"+posneg+"/info/"
             + str(filename)
             + "_"
-            + str(1)
-            + "_implanted_info"+extension+".npy"
+            + str(quad)+"_info.npy"
         )
         info = np.load(infopath)
         for idx in group.index:
@@ -3168,7 +3194,7 @@ def match_implantations_eff(df_original, posneg):
             col_from_implant[idx] = info[closest_idx_info][0]
             A_from_implant[idx] = info[closest_idx_info][2]
             sig_from_implant[idx] = info[closest_idx_info][3]
-        
+            
     df["dist_to_implant"] = df.index.map(dist_to_implant)
     df["row_from_implant"] = df.index.map(row_from_implant)
     df["col_from_implant"] = df.index.map(col_from_implant)
@@ -3338,3 +3364,198 @@ def inspect_stamp_and_all_maps(df, index, eff=True, posneg=None, size=10, column
     # print(df["row_from_implant"].iloc[index], col, df["col_from_implant"].iloc[index], row)
     fig.colorbar(imj, orientation='horizontal')
     plt.show()
+    
+def show_confusion_matrix(save_name, sats=False):
+    
+    label_pred_te = np.load("/home/3155/saved_loss/label_pred_te_"+save_name+".npy")
+    # feat_te = np.load("/home/3155/saved_loss/targ_te_"+save_name+".npy")
+    targ_te = np.load("/home/3155/saved_loss/targ_te_"+save_name+".npy")
+    if sats==True:
+        disp = ConfusionMatrixDisplay.from_predictions(
+            targ_te,
+            np.argmax(label_pred_te, axis=1),
+            display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak", "Satellite"],
+            cmap="bone",
+            normalize="true",
+        )
+    elif sats==False:
+        disp = ConfusionMatrixDisplay.from_predictions(
+            targ_te,
+            np.argmax(label_pred_te, axis=1),
+            display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak"],
+            cmap="bone",
+            normalize="true",
+        )
+    # Adjust tick label size
+    disp.ax_.tick_params(axis="y", labelsize=17)
+    disp.ax_.tick_params(axis="x", labelsize=13)
+
+    # Adjust font size of numbers
+    for text in disp.ax_.texts:  # Access text annotations
+        text.set_fontsize(16)  # Set desired font size
+    disp.ax_.set_xlabel("Predicted Label", fontsize=14)  # Adjust X-axis label
+    disp.ax_.set_ylabel("True Label", fontsize=18)  # Adjust Y-axis label
+    disp.ax_.set_title(save_name)
+
+    cbar = disp.im_.colorbar  # Access the colorbar
+    cbar.ax.tick_params(labelsize=16)  # Adjust tick label size
+    plt.show()
+    
+    
+    
+
+# our_feat_te = feat_te[bness_te > 0]
+# our_bness_te = bness_te[bness_te > 0]
+# our_lens_te = lens_te[bness_te > 0]
+# our_pred_te_max = np.argmax(label_pred_te[bness_te > 0], axis=1)
+# our_targ_te = targ_te[bness_te > 0]
+   
+
+
+def heatmap(save_name):
+    our_feat_te = np.load("/home/3155/saved_loss/our_feat_te_"+save_name+".npy")
+    our_bness_te = np.load("/home/3155/saved_loss/our_bness_te_"+save_name+".npy")
+    our_lens_te = np.load("/home/3155/saved_loss/our_lens_te_"+save_name+".npy")
+    our_pred_te_max = np.load("/home/3155/saved_loss/our_pred_te_max_"+save_name+".npy")
+    our_targ_te = np.load("/home/3155/saved_loss/our_targ_te_"+save_name+".npy") 
+    length_values = np.unique(our_lens_te)
+    trues = []
+    fails = []
+    for i in range(len(our_targ_te)):
+        if our_targ_te[i] == our_pred_te_max[i]:
+            trues.append([our_bness_te[i], our_lens_te[i]])
+        else:
+            fails.append([our_bness_te[i], our_lens_te[i]])
+    fails = np.array(fails)
+    trues = np.array(trues)
+
+    # Given nonlinear brightness values
+    brightness_values = np.unique(our_bness_te)
+    length_values = np.unique(our_lens_te)
+
+    # # Given nonlinear brightness and length values
+    # brightness_values = np.array([0.8, 0.9, 0.99, 1.01, 1.1, 2, 5, 10])
+    # length_values = np.array([1, 2, 3, 4, 5, 6, 7, 8])  # Example length values
+
+    # Create bins for brightness and length
+    brightness_bins = np.concatenate(
+        [
+            [brightness_values[0] - 0.1],
+            (brightness_values[:-1] + brightness_values[1:]) / 2,
+            [brightness_values[-1] + 0.1],
+        ]
+    )
+
+    length_bins = np.concatenate(
+        [
+            [length_values[0] - 0.5],
+            (length_values[:-1] + length_values[1:]) / 2,
+            [length_values[-1] + 0.5],
+        ]
+    )
+
+    # Example data: Replace these with your actual data
+    correct_detections = trues  # Array of correctly detected (brightness, length)
+    incorrect_detections = fails  # Array of incorrectly detected (brightness, length)
+
+    # Create 2D histogram for correct and total detections
+    correct_hist, xedges, yedges = np.histogram2d(
+        correct_detections[:, 0],
+        correct_detections[:, 1],
+        bins=[brightness_bins, length_bins],
+    )
+
+    total_hist, _, _ = np.histogram2d(
+        np.vstack((correct_detections, incorrect_detections))[:, 0],
+        np.vstack((correct_detections, incorrect_detections))[:, 1],
+        bins=[brightness_bins, length_bins],
+    )
+
+    # Calculate efficiency
+    efficiency = correct_hist / total_hist
+
+    # Calculate error (using Poisson approximation)
+    error = np.sqrt(efficiency * (1 - efficiency) / total_hist)
+
+    # Plotting the heatmap
+    plt.figure(figsize=(12, 10))
+    bottom_ticks_values = (
+        np.arange(3, len(length_values) + 3) * 10000 / 3080
+    )  # * (10/6.15)  # Example: double the length values
+    bottom_tick_labels = [f"{val:.1f}" for val in bottom_ticks_values]
+    heatmap = sns.heatmap(
+        efficiency,
+        xticklabels=bottom_tick_labels,
+        yticklabels=brightness_values,
+        cmap="viridis",
+        annot=False,
+        vmin=0,
+        vmax=1,
+    )
+
+    # Setting the bottom axis label
+    ax = plt.gca()  # Get the current axis
+    ax.set_xlabel("Transient Duration $\sigma$ (milliseconds)", fontsize=18)  # Bottom label
+    ax.xaxis.set_label_position("bottom")  # Ensure the label is positioned at the bottom
+    ax.xaxis.tick_bottom()  # Ensure the ticks are at the bottom
+
+    # Customizing the bottom ticks
+    # plt.xticks(ticks=bottom_ticks_values, labels=bottom_tick_labels, fontsize=12)
+    plt.xticks(fontsize=12)
+
+    # Creating custom ticks and label for the top axis with different numbers
+    top_tick_labels = length_values
+    ax_top = ax.twiny()  # Create a new axis sharing the x-axis
+    ax_top.set_xlim(ax.get_xlim())  # Ensure the limits are shared
+    ax_top.set_xticks(np.arange(len(length_values)) + 0.5)  # Set tick positions for top
+    ax_top.set_xticklabels(top_tick_labels, fontsize=13)  # Set custom labels for top
+    ax_top.set_xlabel(
+        "Transient Duration $\sigma$ (pixels)", fontsize=18, labelpad=10
+    )  # Top label
+
+    # Setting y-axis label and title
+    ax.set_ylabel("Transient Multiplicative Amplitude A", fontsize=18)
+    plt.title("Transient Detection Efficiency Heatmap", fontsize=20)
+
+    # Customizing tick positions and labels for the y-axis
+    plt.yticks(
+        ticks=np.arange(len(brightness_values)) + 0.5, labels=brightness_values, fontsize=12
+    )
+
+    # Overlaying error bars and adding text annotations
+    for i in range(efficiency.shape[0]):
+        for j in range(efficiency.shape[1]):
+            if total_hist[i, j] > 0:  # Only annotate if there are detections
+                # Format the annotation text
+                text = f"{efficiency[i, j]:.2f} ± {error[i, j]:.2f}" #{total_hist[i,j]}"#
+                # Add the text annotation in the center of each bin
+                if efficiency[i, j]<.8:
+                    color="white"
+                else:
+                    color='orange'
+                plt.text(
+                    j + 0.5,
+                    i + 0.5,
+                    text,
+                    ha="center",
+                    va="center",
+                    color=color,
+                    fontsize=11,
+                )
+
+                # Remove the black outline (spines) from all sides
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    for spine in ax_top.spines.values():
+        spine.set_visible(False)
+
+
+    # Adjust tick label size
+    ax.tick_params(axis="y", labelsize=12)
+    ax.tick_params(axis="x", labelsize=13)
+
+
+    # Access the colorbar and modify tick font size
+    cbar = heatmap.collections[0].colorbar  # Access the colorbar
+    cbar.ax.tick_params(labelsize=13)  # Adjust tick label size

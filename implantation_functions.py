@@ -716,3 +716,96 @@ def get_maxcol_for_streak(image, streak_x_val, center_value_y):
 
     maxcol = np.argmax(averages[streak_x_val - 5 : streak_x_val + 5]) + streak_x_val - 5 #FEB 2026 was 3 now 5
     return maxcol
+
+
+def implant_50_transients(
+    image, sigmas, intensities, counter, norm
+):
+    """
+    like it says on the tin
+
+    """
+    intensity_counter = counter
+    transient_info = []  # empty list for adding info for implanted transients
+
+
+    implanted = image    
+    averages = np.average(image[35:-35,35:-35], axis=0) #cut off edges
+    peaks, heights = find_peaks(averages, height=(None, None))
+    min_height = np.sort(heights['peak_heights'])[-10]
+    tall_map = heights['peak_heights']>=min_height
+    tall_peaks = peaks[tall_map]+35
+    
+    
+
+    for streak_x_val in tall_peaks:
+        for iteration in range(0,5):
+            
+            center_value_y = np.random.randint(0,100)+35+iteration*(2900//5)
+            intensity = intensities[intensity_counter]
+            sigma = sigmas[intensity_counter]
+            intensity_counter += 1
+            implanted, maxcol = implant_transient_full_image(
+                implanted, streak_x_val, center_value_y, intensity, sigma, norm
+            )
+            # print("intensity "+str(intensity))
+            # print("xval "+str(streak_x_val))
+            # if plot == True:
+            #     show_streak(implanted, streak_x_val, center_value_y)
+            trans_xcoord_ycoord_intensity_sigma = (
+                maxcol, 
+                center_value_y,
+                intensity,
+                sigma,
+            )
+            print("trans xcoord etc: ", trans_xcoord_ycoord_intensity_sigma)
+            transient_info.append(trans_xcoord_ycoord_intensity_sigma)
+    return implanted, transient_info
+
+
+
+def get_intensities_pos_feb_eff(total_desired, seed):
+    """
+    the positive intensities
+    o	For the center of the transient, choose to have at least half the transient in the image
+    (randint between -5 and 26 will be the center of the gaussian for size 10 events)
+    o	intensities of (multiplicative factors) [2, 1.5, 1.4, 1.3, 1.2, 1.15, 1.1, 1.05, 1.01, 1.005]
+    """
+    np.random.seed(
+        seed
+    )  # so that i can keep the same random - last time it was seed 21. before that it was 20
+
+    
+    # Define intensity values
+    intensity_values = [10, 7, 5, 2, 1.5, 1.4, 1.3, 1.2, 1.15, 1.1, 1.05, 1.01, 1.005]
+    
+    # Create evenly split arrays for each intensity
+    evensplit = total_desired // len(intensity_values) + 1 # to make sure there is enough i will put one extra of each
+    intensities = np.repeat(intensity_values, evensplit)
+    
+    # Shuffle and return
+    np.random.shuffle(intensities) # this shuffles the array in place
+    return intensities
+
+def get_intensities_neg_feb_eff(total_desired, seed):
+    """
+    the neg intensities
+    o	For the center of the transient, choose to have at least half the transient in the image
+    (randint between -5 and 26 will be the center of the gaussian for size 10 events)
+    o	intensities of (multiplicative factors) [.995, .99, .95, .9, .8, .7, .6, .5]
+    """
+    np.random.seed(
+        seed
+    )  # so that i can keep the same random - last time it was seed 21. before that it was 20
+
+    
+    # Define intensity values
+    intensity_values = [.995, .99, .95, .9, .8, .7, .6, .5, .4, .3, .2]
+    
+    # Create evenly split arrays for each intensity
+    evensplit = total_desired // len(intensity_values) + 1 # to make sure there is enough i will put one extra of each
+    intensities = np.repeat(intensity_values, evensplit)
+    
+    # Shuffle and return
+    np.random.shuffle(intensities) # this shuffles the array in place
+    return intensities

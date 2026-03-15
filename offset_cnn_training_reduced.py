@@ -303,7 +303,7 @@ neg_use, bness_neg_use, lens_neg_use,info_use_neg = split_stamps(all_neg_stamps,
    
 streaks_use, ignore, ignore2, info_use_streak = split_stamps(all_streak_stamps, all_streak_stamps_info, 57400/6, random_state=303, return_test=False)
 
-bg_use, ignore, ignore2, info_use_bg = split_stamps(all_bg_stamps, all_bg_stamps_info, 57400/3, random_state=304, return_test=False)
+bg_use, ignore, ignore2, info_use_bg = split_stamps(all_bg_stamps, all_bg_stamps_info, 57400/30, random_state=304, return_test=False)
   
 
     

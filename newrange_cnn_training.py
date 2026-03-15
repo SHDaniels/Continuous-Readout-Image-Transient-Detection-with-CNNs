@@ -379,7 +379,7 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(feat_tr)):
         targ_tr_fold,
         epochs=1000,
         validation_data=(feat_val_fold, targ_val_fold),
-        batch_size=5,
+        batch_size=10, #was 5 then 500-50
         callbacks=[earlystopping, my_lr_scheduler],
     )
 
@@ -392,6 +392,11 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(feat_tr)):
     val_acc_list.append(acc_val)
     print(f"Fold {fold + 1} - Validation accuracy: {acc_val:.4f}")
     print(f"Fold {fold + 1} - Training accuracy: {acc_tr:.4f}")
+    np.save("/home/3155/saved_loss/"+save_name+"_loss_history"+str(fold), history.history["loss"])
+
+    np.save("/home/3155/saved_loss/"+save_name+"_val_loss_history"+str(fold), history.history["val_loss"])
+    np.save("/home/3155/saved_loss/"+save_name+"_accuracy_history"+str(fold), history.history["accuracy"])
+    np.save("/home/3155/saved_loss/"+save_name+"_val_accuracy_history"+str(fold), history.history["val_accuracy"])
 
 # Calculate and print the average accuracy across all folds
 avg_train_acc = np.mean(train_acc_list)
@@ -409,18 +414,34 @@ model.save("CNN_"+save_name)
 # In[16]:
 
 
-np.save("/home/3155/"+save_name+"_loss_history", history.history["loss"])
 
 
 # In[17]:
 
 
-np.save("/home/3155/"+save_name+"_val_loss_history", history.history["val_loss"])
-np.save("/home/3155/"+save_name+"_accuracy_history", history.history["accuracy"])
-np.save("/home/3155/"+save_name+"_val_accuracy_history", history.history["val_accuracy"])
+
 
 
 # In[ ]:
 
 
 print("DONE TRAINING")
+
+   
+label_pred_te = model.predict(feat_te)
+np.save("/home/3155/saved_loss/label_pred_te_"+save_name, label_pred_te)
+# np.save("/home/3155/saved_loss/feat_te_"+save_name, feat_te)
+np.save("/home/3155/saved_loss/targ_te_"+save_name, targ_te)
+
+length_values = np.unique(lens_te[lens_te>0])
+our_feat_te = feat_te[bness_te > 0]
+our_bness_te = bness_te[bness_te > 0]
+our_lens_te = lens_te[bness_te > 0]
+our_pred_te_max = np.argmax(label_pred_te[bness_te > 0], axis=1)
+our_targ_te = targ_te[bness_te > 0]
+   
+np.save("/home/3155/saved_loss/our_feat_te_"+save_name, our_feat_te)
+np.save("/home/3155/saved_loss/our_bness_te_"+save_name, our_bness_te)
+np.save("/home/3155/saved_loss/our_lens_te_"+save_name, our_lens_te)
+np.save("/home/3155/saved_loss/our_pred_te_max_"+save_name, our_pred_te_max)
+np.save("/home/3155/saved_loss/our_targ_te_"+save_name, our_targ_te)   
