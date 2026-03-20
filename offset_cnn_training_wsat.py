@@ -360,16 +360,19 @@ def split_stamps(stamps, info, train_size, random_state, return_test=False, numi
 
 # bg_use, ignore, ignore2, info_use_bg = split_stamps(all_bg_stamps, all_bg_stamps_info, len(all_sat_stamps)/30, random_state=304, return_test=False) #was 10
 
+#divided by 6 worked, 
 
-pos_use, ignore, bness_pos_use, ignore2, lens_pos_use, ignore3, info_use_pos, ignore4  = train_test_split(all_pos_stamps, all_pos_stamps_info[:,1], all_pos_stamps_info[:,2], all_pos_stamps_info, train_size=int(57400/6), random_state=301) #was 2
+pos_use, ignore, bness_pos_use, ignore2, lens_pos_use, ignore3, info_use_pos, ignore4  = train_test_split(all_pos_stamps, all_pos_stamps_info[:,1], all_pos_stamps_info[:,2], all_pos_stamps_info, train_size=int(57400/4), random_state=301) #was 2
+#divided by 6 worked
 
-neg_use, ignore, bness_neg_use, ignore2, lens_neg_use, ignore3, info_use_neg, ignore4 = train_test_split(all_neg_stamps, all_neg_stamps_info[:,1], all_neg_stamps_info[:,2], all_neg_stamps_info, train_size=int(57400/6), random_state=302)
-   
-streaks_use, ignore, info_use_streak, ignore2= train_test_split(all_streak_stamps, all_streak_stamps_info, train_size=int(57400/6), random_state=303)
+neg_use, ignore, bness_neg_use, ignore2, lens_neg_use, ignore3, info_use_neg, ignore4 = train_test_split(all_neg_stamps, all_neg_stamps_info[:,1], all_neg_stamps_info[:,2], all_neg_stamps_info, train_size=int(57400/4), random_state=302)
+#divided by 6 worked
 
+streaks_use, ignore, info_use_streak, ignore2= train_test_split(all_streak_stamps, all_streak_stamps_info, train_size=int(57400/4), random_state=303)
+#divided by 6 worked
   
-bg_use, ignore, info_use_bg, ignore2 = train_test_split(all_bg_stamps, all_bg_stamps_info, train_size=int(57400/3), random_state=304)
-
+bg_use, ignore, info_use_bg, ignore2 = train_test_split(all_bg_stamps, all_bg_stamps_info, train_size=int(57400/2), random_state=304)
+#divided by 3 worked
     
 
 pos_train, bness_train_pos, lens_train_pos, pos_test, bness_test_pos,lens_test_pos = split_stamps(pos_use, info_use_pos, .75, random_state=301, return_test=True)
@@ -514,8 +517,8 @@ my_lr_scheduler = keras.callbacks.LearningRateScheduler(adapt_learning_rate)
 
 # early stopping callback
 earlystopping = keras.callbacks.EarlyStopping(
-    monitor="val_loss", min_delta=0.001, patience=80, restore_best_weights=True
-)
+    monitor="val_loss", min_delta=0.0001, patience=50, restore_best_weights=True
+) #was min_delta=0.001, patience=80
 # This callback will stop the training when there is no improvement in
 # the loss for 30 consecutive epochs.
 # also will restore the best weights instead of the most recent
@@ -524,7 +527,7 @@ wid = 10
 
 # -- build a simple CNN
 layer1 = keras.layers.Conv2D(
-    32, #was 16
+    16, #was 16
     kernel_size=(5, 5),
     padding="same",
     activation="relu",
@@ -533,28 +536,28 @@ layer1 = keras.layers.Conv2D(
 )
 layer2 = keras.layers.MaxPool2D(2)  # changed from 2
 layer3 = keras.layers.Conv2D(
-    64, #was 32
+    32, #was 32
     kernel_size=(3, 3),
     padding="same",
     activation="relu",
     kernel_regularizer=keras.regularizers.l2(0.06),
 )
 layer9 = keras.layers.Conv2D(
-    64, #was 32
+    32, #was 32
     kernel_size=(3, 3),
     padding="same",
     activation="relu",
     kernel_regularizer=keras.regularizers.l2(0.06),
 )
-# layer4 = keras.layers.MaxPool2D(2)  # changed from 2 #JUST TOOK OUT FEB
+layer4 = keras.layers.MaxPool2D(2)  # changed from 2 #JUST TOOK OUT FEB
 # layer31 = keras.layers.Conv2D(32, kernel_size=(3, 3), padding="same", activation="relu", kernel_regularizer=keras.regularizers.l2(0.06))
 # layer91 = keras.layers.Conv2D(32, kernel_size=(3, 3), padding="same", activation="relu", kernel_regularizer=keras.regularizers.l2(0.06))
 # layer41 = keras.layers.MaxPool2D(2) #changed from 2
 layer5 = keras.layers.Flatten()
-layer55 = keras.layers.Dense(1024, activation="relu")
-layer56 = keras.layers.Dense(512, activation="relu")
+# layer55 = keras.layers.Dense(1024, activation="relu")
+# layer56 = keras.layers.Dense(512, activation="relu")
 layer6 = keras.layers.Dense(
-    256, activation="relu"
+    300, activation="relu"
 )  # ,kernel_regularizer=keras.regularizers.l2(0.05)) #was 300
 layer7 = keras.layers.Dense(128, activation="relu")
 layer71 = keras.layers.Dense(64, activation="relu")
@@ -565,9 +568,10 @@ layers = [
     layer2,
     layer3,
     layer9,
+    layer4,
     layer5,
-    layer55,
-    layer56,
+    # layer55,
+    # layer56,
     layer6,
     layer7,
     layer71,
@@ -604,7 +608,7 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(feat_tr)):
         targ_tr_fold,
         epochs=1000,
         validation_data=(feat_val_fold, targ_val_fold),
-        batch_size=50, #was fine on 200
+        batch_size=25, #was fine on 200
         callbacks=[earlystopping, my_lr_scheduler],
     )
 

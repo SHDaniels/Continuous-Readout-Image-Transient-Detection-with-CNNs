@@ -437,147 +437,147 @@ targ_te_one_hot = to_categorical(targ_te, num_classes=5)
 
 
 
-# adaptive learning rate
-def adapt_learning_rate(epoch):
-    if epoch < 25:
-        return 0.001
-    elif epoch < 50:
-        return 0.0005
-    elif epoch < 80:
-        return 0.0001
-    elif epoch < 110:
-        return 0.00005
-    elif epoch < 150:
-        return 0.00001
-    else:
-        return 0.000005
-    # let's just test that out and see how it is
+# # adaptive learning rate
+# def adapt_learning_rate(epoch):
+#     if epoch < 25:
+#         return 0.001
+#     elif epoch < 50:
+#         return 0.0005
+#     elif epoch < 80:
+#         return 0.0001
+#     elif epoch < 110:
+#         return 0.00005
+#     elif epoch < 150:
+#         return 0.00001
+#     else:
+#         return 0.000005
+#     # let's just test that out and see how it is
 
 
-# note: default Adam learning rate is 0.001
+# # note: default Adam learning rate is 0.001
 
-my_lr_scheduler = keras.callbacks.LearningRateScheduler(adapt_learning_rate)
+# my_lr_scheduler = keras.callbacks.LearningRateScheduler(adapt_learning_rate)
 
-# early stopping callback
-earlystopping = keras.callbacks.EarlyStopping(
-    monitor="val_loss", min_delta=0.001, patience=80, restore_best_weights=True
-)
-# This callback will stop the training when there is no improvement in
-# the loss for 30 consecutive epochs.
-# also will restore the best weights instead of the most recent
+# # early stopping callback
+# earlystopping = keras.callbacks.EarlyStopping(
+#     monitor="val_loss", min_delta=0.0001, patience=50, restore_best_weights=True
+# )
+# # This callback will stop the training when there is no improvement in
+# # the loss for 30 consecutive epochs.
+# # also will restore the best weights instead of the most recent
 
-wid = 10
+# wid = 10
 
-# -- build a simple CNN
-layer1 = keras.layers.Conv2D(
-    16,
-    kernel_size=(5, 5),
-    padding="same",
-    activation="relu",
-    input_shape=(2 * wid, 2 * wid, 1),
-    kernel_regularizer=keras.regularizers.l2(0.05),
-)
-layer2 = keras.layers.MaxPool2D(2)  # changed from 2
-layer3 = keras.layers.Conv2D(
-    32,
-    kernel_size=(3, 3),
-    padding="same",
-    activation="relu",
-    kernel_regularizer=keras.regularizers.l2(0.06),
-)
-layer9 = keras.layers.Conv2D(
-    32,
-    kernel_size=(3, 3),
-    padding="same",
-    activation="relu",
-    kernel_regularizer=keras.regularizers.l2(0.06),
-)
-layer4 = keras.layers.MaxPool2D(2)  # changed from 2
-# layer31 = keras.layers.Conv2D(32, kernel_size=(3, 3), padding="same", activation="relu", kernel_regularizer=keras.regularizers.l2(0.06))
-# layer91 = keras.layers.Conv2D(32, kernel_size=(3, 3), padding="same", activation="relu", kernel_regularizer=keras.regularizers.l2(0.06))
-# layer41 = keras.layers.MaxPool2D(2) #changed from 2
-layer5 = keras.layers.Flatten()
-layer6 = keras.layers.Dense(
-    300, activation="relu"
-)  # ,kernel_regularizer=keras.regularizers.l2(0.05))
-layer7 = keras.layers.Dense(128, activation="relu")
-layer71 = keras.layers.Dense(64, activation="relu")
-layer72 = keras.layers.Dense(32, activation="relu")
-layer8 = keras.layers.Dense(5, activation="softmax")
-layers = [
-    layer1,
-    layer2,
-    layer3,
-    layer9,
-    layer4,
-    layer5,
-    layer6,
-    layer7,
-    layer71,
-    layer72,
-    layer8,
-]
+# # -- build a simple CNN
+# layer1 = keras.layers.Conv2D(
+#     16,
+#     kernel_size=(5, 5),
+#     padding="same",
+#     activation="relu",
+#     input_shape=(2 * wid, 2 * wid, 1),
+#     kernel_regularizer=keras.regularizers.l2(0.05),
+# )
+# layer2 = keras.layers.MaxPool2D(2)  # changed from 2
+# layer3 = keras.layers.Conv2D(
+#     32,
+#     kernel_size=(3, 3),
+#     padding="same",
+#     activation="relu",
+#     kernel_regularizer=keras.regularizers.l2(0.06),
+# )
+# layer9 = keras.layers.Conv2D(
+#     32,
+#     kernel_size=(3, 3),
+#     padding="same",
+#     activation="relu",
+#     kernel_regularizer=keras.regularizers.l2(0.06),
+# )
+# layer4 = keras.layers.MaxPool2D(2)  # changed from 2
+# # layer31 = keras.layers.Conv2D(32, kernel_size=(3, 3), padding="same", activation="relu", kernel_regularizer=keras.regularizers.l2(0.06))
+# # layer91 = keras.layers.Conv2D(32, kernel_size=(3, 3), padding="same", activation="relu", kernel_regularizer=keras.regularizers.l2(0.06))
+# # layer41 = keras.layers.MaxPool2D(2) #changed from 2
+# layer5 = keras.layers.Flatten()
+# layer6 = keras.layers.Dense(
+#     300, activation="relu"
+# )  # ,kernel_regularizer=keras.regularizers.l2(0.05))
+# layer7 = keras.layers.Dense(128, activation="relu")
+# layer71 = keras.layers.Dense(64, activation="relu")
+# layer72 = keras.layers.Dense(32, activation="relu")
+# layer8 = keras.layers.Dense(5, activation="softmax")
+# layers = [
+#     layer1,
+#     layer2,
+#     layer3,
+#     layer9,
+#     layer4,
+#     layer5,
+#     layer6,
+#     layer7,
+#     layer71,
+#     layer72,
+#     layer8,
+# ]
 
-# Parameters
-n_splits = 5  # Number of folds for cross-validation
+# # Parameters
+# n_splits = 5  # Number of folds for cross-validation
 
-# Initialize KFold
-kf = KFold(n_splits=n_splits, shuffle=True, random_state=302)
+# # Initialize KFold
+# kf = KFold(n_splits=n_splits, shuffle=True, random_state=302)
 
-# Initialize lists to store training and validation results
-train_acc_list = []
-val_acc_list = []
+# # Initialize lists to store training and validation results
+# train_acc_list = []
+# val_acc_list = []
 
-for fold, (train_idx, val_idx) in enumerate(kf.split(feat_tr)):
-    print(f"Training fold {fold + 1}/{n_splits}...")
+# for fold, (train_idx, val_idx) in enumerate(kf.split(feat_tr)):
+#     print(f"Training fold {fold + 1}/{n_splits}...")
 
-    # Split the data into training and validation sets for this fold
-    feat_tr_fold, feat_val_fold = feat_tr[train_idx], feat_tr[val_idx]
-    targ_tr_fold, targ_val_fold = targ_tr_one_hot[train_idx], targ_tr_one_hot[val_idx]
+#     # Split the data into training and validation sets for this fold
+#     feat_tr_fold, feat_val_fold = feat_tr[train_idx], feat_tr[val_idx]
+#     targ_tr_fold, targ_val_fold = targ_tr_one_hot[train_idx], targ_tr_one_hot[val_idx]
 
-    # Build a new model for each fold
-    model = keras.Sequential(layers)
-    model.compile(
-        optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"]
-    )
+#     # Build a new model for each fold
+#     model = keras.Sequential(layers)
+#     model.compile(
+#         optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"]
+#     )
 
-    # Fit the model
-    history = model.fit(
-        feat_tr_fold,
-        targ_tr_fold,
-        epochs=1000,
-        validation_data=(feat_val_fold, targ_val_fold),
-        batch_size=400, #was fine on 200
-        callbacks=[earlystopping, my_lr_scheduler],
-    )
+#     # Fit the model
+#     history = model.fit(
+#         feat_tr_fold,
+#         targ_tr_fold,
+#         epochs=1000,
+#         validation_data=(feat_val_fold, targ_val_fold),
+#         batch_size=25, #was fine on 200
+#         callbacks=[earlystopping, my_lr_scheduler],
+#     )
 
-    # Evaluate the model on the validation set
-    loss_val, acc_val = model.evaluate(feat_val_fold, targ_val_fold)
-    loss_tr, acc_tr = model.evaluate(feat_tr_fold, targ_tr_fold)
+#     # Evaluate the model on the validation set
+#     loss_val, acc_val = model.evaluate(feat_val_fold, targ_val_fold)
+#     loss_tr, acc_tr = model.evaluate(feat_tr_fold, targ_tr_fold)
 
-    # Store the results
-    train_acc_list.append(acc_tr)
-    val_acc_list.append(acc_val)
-    print(f"Fold {fold + 1} - Validation accuracy: {acc_val:.4f}")
-    print(f"Fold {fold + 1} - Training accuracy: {acc_tr:.4f}")
-    np.save("/home/3155/"+save_name+"_loss_history"+str(fold), history.history["loss"])
-    np.save("/home/3155/"+save_name+"_val_loss_history"+str(fold), history.history["val_loss"])
-    np.save("/home/3155/"+save_name+"_accuracy_history"+str(fold), history.history["accuracy"])
-    np.save("/home/3155/"+save_name+"_val_accuracy_history"+str(fold), history.history["val_accuracy"])
-    #save the model every epoch, if we see it in more than one of the folds
-
-
-# Calculate and print the average accuracy across all folds
-avg_train_acc = np.mean(train_acc_list)
-avg_val_acc = np.mean(val_acc_list)
-print(f"\nAverage Training accuracy : {avg_train_acc:.4f}")
-print(f"Average Validation accuracy : {avg_val_acc:.4f}")
+#     # Store the results
+#     train_acc_list.append(acc_tr)
+#     val_acc_list.append(acc_val)
+#     print(f"Fold {fold + 1} - Validation accuracy: {acc_val:.4f}")
+#     print(f"Fold {fold + 1} - Training accuracy: {acc_tr:.4f}")
+#     np.save("/home/3155/"+save_name+"_loss_history"+str(fold), history.history["loss"])
+#     np.save("/home/3155/"+save_name+"_val_loss_history"+str(fold), history.history["val_loss"])
+#     np.save("/home/3155/"+save_name+"_accuracy_history"+str(fold), history.history["accuracy"])
+#     np.save("/home/3155/"+save_name+"_val_accuracy_history"+str(fold), history.history["val_accuracy"])
+#     #save the model every epoch, if we see it in more than one of the folds
 
 
-# In[ ]:
+# # Calculate and print the average accuracy across all folds
+# avg_train_acc = np.mean(train_acc_list)
+# avg_val_acc = np.mean(val_acc_list)
+# print(f"\nAverage Training accuracy : {avg_train_acc:.4f}")
+# print(f"Average Validation accuracy : {avg_val_acc:.4f}")
 
 
-model.save("CNN_"+save_name)
+# # In[ ]:
+
+
+# model.save("CNN_"+save_name)
 
 
 # In[16]:
@@ -588,35 +588,38 @@ model.save("CNN_"+save_name)
 # In[ ]:
 
 
-print("DONE TRAINING")
+# print("DONE TRAINING")
 
+model = keras.models.load_model("/home/3155/CNN_"+save_name)
 
 label_pred_te = model.predict(feat_te)
+np.save("/home/3155/saved_loss/label_pred_te_"+save_name, label_pred_te)
+# np.save("/home/3155/saved_loss/feat_te_"+save_name, feat_te)
+np.save("/home/3155/saved_loss/targ_te_"+save_name, targ_te)
+# disp = ConfusionMatrixDisplay.from_predictions(
+#     targ_te,
+#     np.argmax(label_pred_te, axis=1),
+#     display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak", "Satellite"],
+#     cmap="bone",
+#     normalize="true",
+# )
 
-disp = ConfusionMatrixDisplay.from_predictions(
-    targ_te,
-    np.argmax(label_pred_te, axis=1),
-    display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak"],
-    cmap="bone",
-    normalize="true",
-)
+# # Adjust tick label size
+# disp.ax_.tick_params(axis="y", labelsize=17)
+# disp.ax_.tick_params(axis="x", labelsize=13)
 
-# Adjust tick label size
-disp.ax_.tick_params(axis="y", labelsize=17)
-disp.ax_.tick_params(axis="x", labelsize=13)
+# # Adjust font size of numbers
+# for text in disp.ax_.texts:  # Access text annotations
+#     text.set_fontsize(16)  # Set desired font size
+# disp.ax_.set_xlabel("Predicted Label", fontsize=14)  # Adjust X-axis label
+# disp.ax_.set_ylabel("True Label", fontsize=18)  # Adjust Y-axis label
+# disp.ax_.set_title(save_name)
 
-# Adjust font size of numbers
-for text in disp.ax_.texts:  # Access text annotations
-    text.set_fontsize(16)  # Set desired font size
-disp.ax_.set_xlabel("Predicted Label", fontsize=14)  # Adjust X-axis label
-disp.ax_.set_ylabel("True Label", fontsize=18)  # Adjust Y-axis label
-disp.ax_.set_title(key)
+# cbar = disp.im_.colorbar  # Access the colorbar
+# cbar.ax.tick_params(labelsize=16)  # Adjust tick label size
+# plt.savefig("/home/3155/saved_loss/confusion_matrix_"+save_name)
 
-cbar = disp.im_.colorbar  # Access the colorbar
-cbar.ax.tick_params(labelsize=16)  # Adjust tick label size
-plt.savefig("/home/3155/saved_loss/confusion_matrix_"+save_name)
-
-import seaborn as sns
+# import seaborn as sns
 
 length_values = np.unique(lens_te[lens_te>0])
 our_feat_te = feat_te[bness_te > 0]
@@ -624,146 +627,9 @@ our_bness_te = bness_te[bness_te > 0]
 our_lens_te = lens_te[bness_te > 0]
 our_pred_te_max = np.argmax(label_pred_te[bness_te > 0], axis=1)
 our_targ_te = targ_te[bness_te > 0]
-trues = []
-fails = []
-for i in range(len(our_targ_te)):
-    if our_targ_te[i] == our_pred_te_max[i]:
-        trues.append([our_bness_te[i], our_lens_te[i]])
-    else:
-        fails.append([our_bness_te[i], our_lens_te[i]])
-fails = np.array(fails)
-trues = np.array(trues)
-
-# Given nonlinear brightness values
-brightness_values = np.unique(our_bness_te)
-length_values = np.unique(our_lens_te)
-
-# # Given nonlinear brightness and length values
-# brightness_values = np.array([0.8, 0.9, 0.99, 1.01, 1.1, 2, 5, 10])
-# length_values = np.array([1, 2, 3, 4, 5, 6, 7, 8])  # Example length values
-
-# Create bins for brightness and length
-brightness_bins = np.concatenate(
-    [
-        [brightness_values[0] - 0.1],
-        (brightness_values[:-1] + brightness_values[1:]) / 2,
-        [brightness_values[-1] + 0.1],
-    ]
-)
-
-length_bins = np.concatenate(
-    [
-        [length_values[0] - 0.5],
-        (length_values[:-1] + length_values[1:]) / 2,
-        [length_values[-1] + 0.5],
-    ]
-)
-
-# Example data: Replace these with your actual data
-correct_detections = trues  # Array of correctly detected (brightness, length)
-incorrect_detections = fails  # Array of incorrectly detected (brightness, length)
-
-# Create 2D histogram for correct and total detections
-correct_hist, xedges, yedges = np.histogram2d(
-    correct_detections[:, 0],
-    correct_detections[:, 1],
-    bins=[brightness_bins, length_bins],
-)
-
-total_hist, _, _ = np.histogram2d(
-    np.vstack((correct_detections, incorrect_detections))[:, 0],
-    np.vstack((correct_detections, incorrect_detections))[:, 1],
-    bins=[brightness_bins, length_bins],
-)
-
-# Calculate efficiency
-efficiency = correct_hist / total_hist
-
-# Calculate error (using Poisson approximation)
-error = np.sqrt(efficiency * (1 - efficiency) / total_hist)
-
-# Plotting the heatmap
-plt.figure(figsize=(12, 10))
-bottom_ticks_values = (
-    np.arange(3, len(length_values) + 3) * 10000 / 3080
-)  # * (10/6.15)  # Example: double the length values
-bottom_tick_labels = [f"{val:.1f}" for val in bottom_ticks_values]
-heatmap = sns.heatmap(
-    efficiency,
-    xticklabels=bottom_tick_labels,
-    yticklabels=brightness_values,
-    cmap="viridis",
-    annot=False,
-    vmin=0,
-    vmax=1,
-)
-
-# Setting the bottom axis label
-ax = plt.gca()  # Get the current axis
-ax.set_xlabel("Transient Duration $\sigma$ (milliseconds)", fontsize=18)  # Bottom label
-ax.xaxis.set_label_position("bottom")  # Ensure the label is positioned at the bottom
-ax.xaxis.tick_bottom()  # Ensure the ticks are at the bottom
-
-# Customizing the bottom ticks
-# plt.xticks(ticks=bottom_ticks_values, labels=bottom_tick_labels, fontsize=12)
-plt.xticks(fontsize=12)
-
-# Creating custom ticks and label for the top axis with different numbers
-top_tick_labels = length_values
-ax_top = ax.twiny()  # Create a new axis sharing the x-axis
-ax_top.set_xlim(ax.get_xlim())  # Ensure the limits are shared
-ax_top.set_xticks(np.arange(len(length_values)) + 0.5)  # Set tick positions for top
-ax_top.set_xticklabels(top_tick_labels, fontsize=13)  # Set custom labels for top
-ax_top.set_xlabel(
-    "Transient Duration $\sigma$ (pixels)", fontsize=18, labelpad=10
-)  # Top label
-
-# Setting y-axis label and title
-ax.set_ylabel("Transient Multiplicative Amplitude A", fontsize=18)
-plt.title("Transient Detection Efficiency Heatmap", fontsize=20)
-
-# Customizing tick positions and labels for the y-axis
-plt.yticks(
-    ticks=np.arange(len(brightness_values)) + 0.5, labels=brightness_values, fontsize=12
-)
-
-# Overlaying error bars and adding text annotations
-for i in range(efficiency.shape[0]):
-    for j in range(efficiency.shape[1]):
-        if total_hist[i, j] > 0:  # Only annotate if there are detections
-            # Format the annotation text
-            text = f"{efficiency[i, j]:.2f} ± {error[i, j]:.2f}" #{total_hist[i,j]}"#
-            # Add the text annotation in the center of each bin
-            if efficiency[i, j]<.8:
-                color="white"
-            else:
-                color='orange'
-            plt.text(
-                j + 0.5,
-                i + 0.5,
-                text,
-                ha="center",
-                va="center",
-                color=color,
-                fontsize=11,
-            )
-
-            # Remove the black outline (spines) from all sides
-for spine in ax.spines.values():
-    spine.set_visible(False)
-
-for spine in ax_top.spines.values():
-    spine.set_visible(False)
-
-
-# Adjust tick label size
-ax.tick_params(axis="y", labelsize=12)
-ax.tick_params(axis="x", labelsize=13)
-
-
-# Access the colorbar and modify tick font size
-cbar = heatmap.collections[0].colorbar  # Access the colorbar
-cbar.ax.tick_params(labelsize=13)  # Adjust tick label size
-
-
-plt.savefig("/home/3155/saved_loss/heatmap_"+save_name)
+   
+np.save("/home/3155/saved_loss/our_feat_te_"+save_name, our_feat_te)
+np.save("/home/3155/saved_loss/our_bness_te_"+save_name, our_bness_te)
+np.save("/home/3155/saved_loss/our_lens_te_"+save_name, our_lens_te)
+np.save("/home/3155/saved_loss/our_pred_te_max_"+save_name, our_pred_te_max)
+np.save("/home/3155/saved_loss/our_targ_te_"+save_name, our_targ_te)  

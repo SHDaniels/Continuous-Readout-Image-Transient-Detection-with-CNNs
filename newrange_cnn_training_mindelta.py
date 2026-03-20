@@ -379,7 +379,7 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(feat_tr)):
         targ_tr_fold,
         epochs=1000,
         validation_data=(feat_val_fold, targ_val_fold),
-        batch_size=50, #was 5 then 500-50
+        batch_size=25, #was 5 then 500-50
         callbacks=[earlystopping, my_lr_scheduler],
     )
 

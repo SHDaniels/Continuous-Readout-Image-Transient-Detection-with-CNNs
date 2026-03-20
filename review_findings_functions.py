@@ -3365,11 +3365,13 @@ def inspect_stamp_and_all_maps(df, index, eff=True, posneg=None, size=10, column
     fig.colorbar(imj, orientation='horizontal')
     plt.show()
     
-def show_confusion_matrix(save_name, sats=False):
-    
-    label_pred_te = np.load("/home/3155/saved_loss/label_pred_te_"+save_name+".npy")
+def show_confusion_matrix(save_name, sats=False, label_pred_te=None, targ_te=None):
+    if type(label_pred_te)!=np.ndarray:
+        print("loading data")
+        label_pred_te = np.load("/home/3155/saved_loss/label_pred_te_"+save_name+".npy")
     # feat_te = np.load("/home/3155/saved_loss/targ_te_"+save_name+".npy")
-    targ_te = np.load("/home/3155/saved_loss/targ_te_"+save_name+".npy")
+    if type(targ_te)!=np.ndarray:
+        targ_te = np.load("/home/3155/saved_loss/targ_te_"+save_name+".npy")
     if sats==True:
         disp = ConfusionMatrixDisplay.from_predictions(
             targ_te,
