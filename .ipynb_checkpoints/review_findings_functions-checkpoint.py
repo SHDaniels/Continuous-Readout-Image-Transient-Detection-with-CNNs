@@ -3365,43 +3365,62 @@ def inspect_stamp_and_all_maps(df, index, eff=True, posneg=None, size=10, column
     fig.colorbar(imj, orientation='horizontal')
     plt.show()
     
-def show_confusion_matrix(save_name, sats=False, label_pred_te=None, targ_te=None):
-    if type(label_pred_te)!=np.ndarray:
-        print("loading data")
-        label_pred_te = np.load("/home/3155/saved_loss/label_pred_te_"+save_name+".npy")
+def show_confusion_matrix(save_name, sats=False, label_pred_te=None, targ_te=None, folds=False):
+    foldses = ["0","1","2","3","4"]
+
     # feat_te = np.load("/home/3155/saved_loss/targ_te_"+save_name+".npy")
     if type(targ_te)!=np.ndarray:
         targ_te = np.load("/home/3155/saved_loss/targ_te_"+save_name+".npy")
-    if sats==True:
-        disp = ConfusionMatrixDisplay.from_predictions(
-            targ_te,
-            np.argmax(label_pred_te, axis=1),
-            display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak", "Satellite"],
-            cmap="bone",
-            normalize="true",
-        )
-    elif sats==False:
-        disp = ConfusionMatrixDisplay.from_predictions(
-            targ_te,
-            np.argmax(label_pred_te, axis=1),
-            display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak"],
-            cmap="bone",
-            normalize="true",
-        )
-    # Adjust tick label size
-    disp.ax_.tick_params(axis="y", labelsize=17)
-    disp.ax_.tick_params(axis="x", labelsize=13)
+    if type(label_pred_te)!=np.ndarray:
+        print("loading data")
+        if folds==True:
+            for fold in foldses:
+                label_pred_te = np.load("/home/3155/saved_loss/label_pred_te_"+save_name+"_fold_"+fold+".npy")
+                if sats==True:
+                    disp = ConfusionMatrixDisplay.from_predictions(
+                        targ_te,
+                        np.argmax(label_pred_te, axis=1),
+                        display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak", "Satellite"],
+                        cmap="bone",
+                        normalize="true",
+                    )
+                        # Adjust tick label size
+                    disp.ax_.tick_params(axis="y", labelsize=17)
+                    disp.ax_.tick_params(axis="x", labelsize=13)
+                
+                    # Adjust font size of numbers
+                    for text in disp.ax_.texts:  # Access text annotations
+                        text.set_fontsize(16)  # Set desired font size
+                    disp.ax_.set_xlabel("Predicted Label", fontsize=14)  # Adjust X-axis label
+                    disp.ax_.set_ylabel("True Label", fontsize=18)  # Adjust Y-axis label
+                    disp.ax_.set_title(save_name)
+                
+                    cbar = disp.im_.colorbar  # Access the colorbar
+                    cbar.ax.tick_params(labelsize=16)  # Adjust tick label size
+                    plt.show()
+                elif sats==False:
+                    disp = ConfusionMatrixDisplay.from_predictions(
+                        targ_te,
+                        np.argmax(label_pred_te, axis=1),
+                        display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak"],
+                        cmap="bone",
+                        normalize="true",
+                        )
+                        # Adjust tick label size
+                    disp.ax_.tick_params(axis="y", labelsize=17)
+                    disp.ax_.tick_params(axis="x", labelsize=13)
+            
+                    # Adjust font size of numbers
+                    for text in disp.ax_.texts:  # Access text annotations
+                        text.set_fontsize(16)  # Set desired font size
+                    disp.ax_.set_xlabel("Predicted Label", fontsize=14)  # Adjust X-axis label
+                    disp.ax_.set_ylabel("True Label", fontsize=18)  # Adjust Y-axis label
+                    disp.ax_.set_title(save_name)
+            
+                    cbar = disp.im_.colorbar  # Access the colorbar
+                    cbar.ax.tick_params(labelsize=16)  # Adjust tick label size
+                    plt.show()
 
-    # Adjust font size of numbers
-    for text in disp.ax_.texts:  # Access text annotations
-        text.set_fontsize(16)  # Set desired font size
-    disp.ax_.set_xlabel("Predicted Label", fontsize=14)  # Adjust X-axis label
-    disp.ax_.set_ylabel("True Label", fontsize=18)  # Adjust Y-axis label
-    disp.ax_.set_title(save_name)
-
-    cbar = disp.im_.colorbar  # Access the colorbar
-    cbar.ax.tick_params(labelsize=16)  # Adjust tick label size
-    plt.show()
     
     
     

@@ -65,8 +65,10 @@ for i, file in enumerate(os.listdir(image_path)):
     infos = np.load(info_filename_full)
     infos_arr = np.array(infos)
         # Add file index as first column
-    file_idx = np.full((infos_arr.shape[0], 1), i)
-    infos_arr = np.concatenate([file_idx, infos_arr], axis=1)
+    # file_idx = np.full((infos_arr.shape[0], 1), i)
+    # infos_arr[0]=file_idx # = np.concatenate([file_idx, infos_arr], axis=1)
+    file_idx = np.arange(0, len(infos_arr))
+    infos_arr[:,0]=file_idx
     
     print(np.shape(trans))
     print(np.shape(infos))
@@ -75,8 +77,8 @@ for i, file in enumerate(os.listdir(image_path)):
         all_sat_stamps = trans_arr
         all_sat_stamps_info = infos_arr
     else:
-        all_sat_stamps = np.concatenate((all_sat_stamps, trans_arr), axis=0)
-        all_sat_stamps_info = np.concatenate((all_sat_stamps_info, infos_arr), axis=0)
+        all_sat_stamps = np.concatenate((all_sat_stamps, trans_arr), axis=0).astype('int')
+        all_sat_stamps_info = np.concatenate((all_sat_stamps_info, infos_arr), axis=0).astype('int')
 
         
 
@@ -324,10 +326,11 @@ def split_stamps(stamps, info, train_size, random_state, return_test=False, numi
     stamps_use = stamps[train_mask.flatten()]
     bness_use = info[:, 1][train_mask.flatten()]
     lens_use = info[:, 2][train_mask.flatten()]
+    info_use = info[train_mask.flatten()]
     if return_test:
-        return stamps_use, bness_use, lens_use, stamps[~train_mask.flatten()], info[:, 1][~train_mask.flatten()], info[:, 2][~train_mask.flatten()] #train, test
+        return stamps_use, bness_use, lens_use, info_use, stamps[~train_mask.flatten()], info[:, 1][~train_mask.flatten()], info[:, 2][~train_mask.flatten()], info[~train_mask.flatten()] #train, test
     else:
-        return stamps_use, bness_use, lens_use, info[train_mask.flatten()]
+        return stamps_use, bness_use, lens_use, info_use
     
 
 # pos_use, bness_pos_use, lens_pos_use, info_use_pos = split_stamps(all_pos_stamps, all_pos_stamps_info, 57400/6, random_state=301, return_test=False) #was 2
@@ -337,18 +340,21 @@ def split_stamps(stamps, info, train_size, random_state, return_test=False, numi
 # streaks_use, ignore, ignore2, info_use_streak = split_stamps(all_streak_stamps, all_streak_stamps_info, 57400/6, random_state=303, return_test=False)
 
 
-# pos_use = all_pos_stamps
-# bness_pos_use = all_pos_stamps_info[:, 1]
-# lens_pos_use = all_pos_stamps_info[:,2]
-# info_use_pos = all_pos_stamps_info
+pos_use = all_pos_stamps
+bness_pos_use = all_pos_stamps_info[:, 1]
+lens_pos_use = all_pos_stamps_info[:,2]
+info_use_pos = all_pos_stamps_info
 
-# neg_use = all_neg_stamps
-# bness_neg_use = all_neg_stamps_info[:, 1]
-# lens_neg_use = all_neg_stamps_info[:,2]
-# info_use_neg = all_neg_stamps_info
+neg_use = all_neg_stamps
+bness_neg_use = all_neg_stamps_info[:, 1]
+lens_neg_use = all_neg_stamps_info[:,2]
+info_use_neg = all_neg_stamps_info
 
-# streaks_use = all_streak_stamps
-# info_use_streak = all_streak_stamps_info
+streaks_use = all_streak_stamps
+info_use_streak = all_streak_stamps_info
+
+bg_use, ignore, info_use_bg, ignore2 = train_test_split(all_bg_stamps, all_bg_stamps_info, train_size=int(57400*2), random_state=304)
+#57400*2 for "all stamps"
 
 # pos_use, bness_pos_use, lens_pos_use, info_use_pos = split_stamps(all_pos_stamps, all_pos_stamps_info, len(all_sat_stamps), random_state=301, return_test=False) #was 2
 
@@ -362,34 +368,36 @@ def split_stamps(stamps, info, train_size, random_state, return_test=False, numi
 
 #divided by 6 worked, 
 
-pos_use, ignore, bness_pos_use, ignore2, lens_pos_use, ignore3, info_use_pos, ignore4  = train_test_split(all_pos_stamps, all_pos_stamps_info[:,1], all_pos_stamps_info[:,2], all_pos_stamps_info, train_size=int(57400/4), random_state=301) #was 2
-#divided by 6 worked
+# pos_use, ignore, bness_pos_use, ignore2, lens_pos_use, ignore3, info_use_pos, ignore4  = train_test_split(all_pos_stamps, all_pos_stamps_info[:,1], all_pos_stamps_info[:,2], all_pos_stamps_info, train_size=int(57400/4), random_state=301) #was 2
+# #divided by 6 worked
 
-neg_use, ignore, bness_neg_use, ignore2, lens_neg_use, ignore3, info_use_neg, ignore4 = train_test_split(all_neg_stamps, all_neg_stamps_info[:,1], all_neg_stamps_info[:,2], all_neg_stamps_info, train_size=int(57400/4), random_state=302)
-#divided by 6 worked
+# neg_use, ignore, bness_neg_use, ignore2, lens_neg_use, ignore3, info_use_neg, ignore4 = train_test_split(all_neg_stamps, all_neg_stamps_info[:,1], all_neg_stamps_info[:,2], all_neg_stamps_info, train_size=int(57400/4), random_state=302)
+# #divided by 6 worked
 
-streaks_use, ignore, info_use_streak, ignore2= train_test_split(all_streak_stamps, all_streak_stamps_info, train_size=int(57400/4), random_state=303)
-#divided by 6 worked
+# streaks_use, ignore, info_use_streak, ignore2= train_test_split(all_streak_stamps, all_streak_stamps_info, train_size=int(57400/4), random_state=303)
+# #divided by 6 worked
   
-bg_use, ignore, info_use_bg, ignore2 = train_test_split(all_bg_stamps, all_bg_stamps_info, train_size=int(57400/2), random_state=304)
-#divided by 3 worked
+# bg_use, ignore, info_use_bg, ignore2 = train_test_split(all_bg_stamps, all_bg_stamps_info, train_size=int(57400*6), random_state=304)
+# #divided by 3 worked
     
 
-pos_train, bness_train_pos, lens_train_pos, pos_test, bness_test_pos,lens_test_pos = split_stamps(pos_use, info_use_pos, .75, random_state=301, return_test=True)
-neg_train, bness_train_neg, lens_train_neg, neg_test, bness_test_neg,lens_test_neg = split_stamps(neg_use, info_use_neg, .75, random_state=302, return_test=True)
-streak_train, ignore, ignore, streak_test, ignore,ignore = split_stamps(streaks_use, info_use_streak, .75, random_state=303, return_test=True)
-bg_train, bness_train, lens_train, bg_test, bness_test,lens_test = split_stamps(bg_use, info_use_bg, .75, random_state=304, return_test=True)
+pos_train, bness_train_pos, lens_train_pos, info_train_pos, pos_test, bness_test_pos,lens_test_pos, info_test_pos = split_stamps(pos_use, info_use_pos, .75, random_state=301, return_test=True)
+neg_train, bness_train_neg, lens_train_neg, info_train_neg, neg_test, bness_test_neg,lens_test_neg, info_test_neg = split_stamps(neg_use, info_use_neg, .75, random_state=302, return_test=True)
+streak_train, ignore, ignore, info_train_streak, streak_test, ignore, ignore, info_test_streak = split_stamps(streaks_use, info_use_streak, .75, random_state=303, return_test=True)
+bg_train, bness_train, lens_train, info_bg_train, bg_test, bness_test,lens_test, info_bg_test = split_stamps(bg_use, info_use_bg, .75, random_state=304, return_test=True)
 
-sat_train, ignore, ignore, sat_test, ignore, ignore = split_stamps(all_sat_stamps, all_sat_stamps_info, .75, random_state=303, return_test=True)
+# sat_train, ignore, ignore, sat_test, ignore, ignore = split_stamps(all_sat_stamps, all_sat_stamps_info, .75, random_state=303, return_test=True)
 
 
 cr_train, cr_test = train_test_split(all_cr_stamps, random_state=305)
 
+sat_train, sat_test, sat_info_train, sat_info_test = train_test_split(all_sat_stamps, all_sat_stamps_info, random_state=306)
 
 # Combine stamps and labels
+# all_train_stamps = np.concatenate([bg_train, pos_train, neg_train, cr_train, streak_train, sat_train], axis=0)
+# all_test_stamps = np.concatenate([bg_test, pos_test, neg_test, cr_test, streak_test, sat_test], axis=0)
 all_train_stamps = np.concatenate([bg_train, pos_train, neg_train, cr_train, streak_train, sat_train], axis=0)
 all_test_stamps = np.concatenate([bg_test, pos_test, neg_test, cr_test, streak_test, sat_test], axis=0)
-
 # Create labels (e.g. 1=streak, 0=bg)
 # streak_train_labels = np.ones(len(bg_train), dtype=int)
 # bg_train_labels = np.zeros(len(bg_train), dtype=int)
@@ -397,8 +405,9 @@ all_train_labels = np.concatenate([np.zeros(len(bg_train), dtype=int),
                                    np.full(len(pos_train), 1),
                                  np.full(len(neg_train), 2),
                                  np.full(len(cr_train), 3),
-                                 np.full(len(streak_train), 4),
-                                  np.full(len(sat_train), 5)])
+                                 np.full(len(streak_train), 4), 
+                                   np.full(len(sat_train), 5)
+                                  ])
 
 
 all_test_labels = np.concatenate([np.zeros(len(bg_test), dtype=int), 
@@ -406,11 +415,21 @@ all_test_labels = np.concatenate([np.zeros(len(bg_test), dtype=int),
                                  np.full(len(neg_test), 2),
                                  np.full(len(cr_test), 3),
                                  np.full(len(streak_test), 4),
-                                 np.full(len(sat_test), 5)])
+                                  np.full(len(sat_test), 5)
+                                 ])
 
 # # Also combine info if you need it
 # all_train_info = np.concatenate([streak_train_info, bg_train_info], axis=0)
 # all_test_info = np.concatenate([streak_test_info, bg_test_info], axis=0)
+
+all_info_train = np.concatenate(
+    (
+        info_bg_train,
+        info_train_pos,
+        info_train_neg,
+        np.zeros((len(cr_train), 6)),
+        info_train_streak, sat_info_train),#np.full(len(sat_test), 0.),
+    )
 
 # Process bness and lens
 bness_train = np.concatenate(
@@ -419,7 +438,7 @@ bness_train = np.concatenate(
         bness_train_pos,
         bness_train_neg,
         np.full(len(cr_train), 0.),
-        np.full(len(streak_train), 0.),np.full(len(sat_train), 0.),
+        np.full(len(streak_train), 0.),np.full(len(sat_train), 0.)
     )
 )
 
@@ -429,9 +448,19 @@ lens_train = np.concatenate(
         lens_train_pos,
         lens_train_neg,
         np.full(len(cr_train), 0.),
-        np.full(len(streak_train), 0.),np.full(len(sat_train), 0.),
+        np.full(len(streak_train), 0.),np.full(len(sat_train), 0.)
     )
 )
+
+# all_info_train = np.concatenate(
+#     (
+#         info_bg_train,
+#         info_train_pos,
+#         info_train_neg,
+#         np.full(len(cr_test), 0.),
+#         info_streak_train),#np.full(len(sat_test), 0.),
+#     )
+
 
 # Process bness and lens
 bness_test = np.concatenate(
@@ -440,7 +469,7 @@ bness_test = np.concatenate(
         bness_test_pos,
         bness_test_neg,
         np.full(len(cr_test), 0.),
-        np.full(len(streak_test), 0.),np.full(len(sat_test), 0.),
+        np.full(len(streak_test), 0.), np.full(len(sat_test), 0.),
     )
 )
 
@@ -454,6 +483,16 @@ lens_test = np.concatenate(
     )
 )
 
+all_info_test = np.concatenate(
+    (
+        info_bg_test.astype('int'),
+        info_test_pos.astype('int'),
+        info_test_neg.astype('int'),
+        np.zeros((len(cr_test), 6)).astype('int'),
+        info_test_streak.astype('int'),sat_info_test.astype('int'))
+    )
+
+
 # Shuffle using a shared permutation index
 train_perm = np.random.default_rng(seed=301).permutation(len(all_train_stamps))
 test_perm = np.random.default_rng(seed=301).permutation(len(all_test_stamps))
@@ -462,11 +501,13 @@ feat_tr = all_train_stamps[train_perm]
 targ_tr = all_train_labels[train_perm]
 bness_tr   = bness_train[train_perm]
 lens_tr = lens_train[train_perm]
+info_tr = all_info_train[train_perm]
 
 feat_te = all_test_stamps[test_perm]
 targ_te = all_test_labels[test_perm]
 bness_te  = bness_test[test_perm]
 lens_te  = lens_test[test_perm]
+info_te = all_info_test[test_perm]
 
 print(f"Train: {len(all_train_stamps)} stamps, {all_train_labels.sum()} streaks, {(all_train_labels==0).sum()} bg")
 print(f"Test:  {len(all_test_stamps)} stamps, {all_test_labels.sum()} streaks, {(all_test_labels==0).sum()} bg")
@@ -625,9 +666,14 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(feat_tr)):
     np.save("/home/3155/saved_loss/"+save_name+"_val_loss_history"+str(fold), history.history["val_loss"])
     np.save("/home/3155/saved_loss/"+save_name+"_accuracy_history"+str(fold), history.history["accuracy"])
     np.save("/home/3155/saved_loss/"+save_name+"_val_accuracy_history"+str(fold), history.history["val_accuracy"])
+    
+    #saving the folds
+    np.save("/home/3155/saved_loss/"+save_name+"_train_idx_"+str(fold), train_idx)
+    np.save("/home/3155/saved_loss/"+save_name+"_val_idx_"+str(fold), val_idx)
     #save the model every epoch, if we see it in more than one of the folds
-
-
+    model.save("CNN_"+save_name+"_"+str(fold))
+    label_pred_te = model.predict(feat_te)
+    np.save("/home/3155/saved_loss/label_pred_te_"+save_name+"_fold_"+str(fold), label_pred_te)
 # Calculate and print the average accuracy across all folds
 avg_train_acc = np.mean(train_acc_list)
 avg_val_acc = np.mean(val_acc_list)
@@ -638,10 +684,10 @@ print(f"Average Validation accuracy : {avg_val_acc:.4f}")
 # In[ ]:
 
 
-model.save("CNN_"+save_name)
 
 
-# In[16]:
+
+
 
 
 
@@ -653,34 +699,10 @@ model.save("CNN_"+save_name)
 
 # model = keras.models.load_model("/home/3155/CNN_"+save_name)
 
-label_pred_te = model.predict(feat_te)
-np.save("/home/3155/saved_loss/label_pred_te_"+save_name, label_pred_te)
+
 # np.save("/home/3155/saved_loss/feat_te_"+save_name, feat_te)
 np.save("/home/3155/saved_loss/targ_te_"+save_name, targ_te)
-# disp = ConfusionMatrixDisplay.from_predictions(
-#     targ_te,
-#     np.argmax(label_pred_te, axis=1),
-#     display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak", "Satellite"],
-#     cmap="bone",
-#     normalize="true",
-# )
 
-# # Adjust tick label size
-# disp.ax_.tick_params(axis="y", labelsize=17)
-# disp.ax_.tick_params(axis="x", labelsize=13)
-
-# # Adjust font size of numbers
-# for text in disp.ax_.texts:  # Access text annotations
-#     text.set_fontsize(16)  # Set desired font size
-# disp.ax_.set_xlabel("Predicted Label", fontsize=14)  # Adjust X-axis label
-# disp.ax_.set_ylabel("True Label", fontsize=18)  # Adjust Y-axis label
-# disp.ax_.set_title(save_name)
-
-# cbar = disp.im_.colorbar  # Access the colorbar
-# cbar.ax.tick_params(labelsize=16)  # Adjust tick label size
-# plt.savefig("/home/3155/saved_loss/confusion_matrix_"+save_name)
-
-# import seaborn as sns
 
 length_values = np.unique(lens_te[lens_te>0])
 our_feat_te = feat_te[bness_te > 0]
@@ -693,148 +715,11 @@ np.save("/home/3155/saved_loss/our_feat_te_"+save_name, our_feat_te)
 np.save("/home/3155/saved_loss/our_bness_te_"+save_name, our_bness_te)
 np.save("/home/3155/saved_loss/our_lens_te_"+save_name, our_lens_te)
 np.save("/home/3155/saved_loss/our_pred_te_max_"+save_name, our_pred_te_max)
-np.save("/home/3155/saved_loss/our_targ_te_"+save_name, our_targ_te)   
+np.save("/home/3155/saved_loss/our_targ_te_"+save_name, our_targ_te)  
 
-# trues = []
-# fails = []
-# for i in range(len(our_targ_te)):
-#     if our_targ_te[i] == our_pred_te_max[i]:
-#         trues.append([our_bness_te[i], our_lens_te[i]])
-#     else:
-#         fails.append([our_bness_te[i], our_lens_te[i]])
-# fails = np.array(fails)
-# trues = np.array(trues)
-
-# # Given nonlinear brightness values
-# brightness_values = np.unique(our_bness_te)
-# length_values = np.unique(our_lens_te)
-
-# # # Given nonlinear brightness and length values
-# # brightness_values = np.array([0.8, 0.9, 0.99, 1.01, 1.1, 2, 5, 10])
-# # length_values = np.array([1, 2, 3, 4, 5, 6, 7, 8])  # Example length values
-
-# # Create bins for brightness and length
-# brightness_bins = np.concatenate(
-#     [
-#         [brightness_values[0] - 0.1],
-#         (brightness_values[:-1] + brightness_values[1:]) / 2,
-#         [brightness_values[-1] + 0.1],
-#     ]
-# )
-
-# length_bins = np.concatenate(
-#     [
-#         [length_values[0] - 0.5],
-#         (length_values[:-1] + length_values[1:]) / 2,
-#         [length_values[-1] + 0.5],
-#     ]
-# )
-
-# # Example data: Replace these with your actual data
-# correct_detections = trues  # Array of correctly detected (brightness, length)
-# incorrect_detections = fails  # Array of incorrectly detected (brightness, length)
-
-# # Create 2D histogram for correct and total detections
-# correct_hist, xedges, yedges = np.histogram2d(
-#     correct_detections[:, 0],
-#     correct_detections[:, 1],
-#     bins=[brightness_bins, length_bins],
-# )
-
-# total_hist, _, _ = np.histogram2d(
-#     np.vstack((correct_detections, incorrect_detections))[:, 0],
-#     np.vstack((correct_detections, incorrect_detections))[:, 1],
-#     bins=[brightness_bins, length_bins],
-# )
-
-# # Calculate efficiency
-# efficiency = correct_hist / total_hist
-
-# # Calculate error (using Poisson approximation)
-# error = np.sqrt(efficiency * (1 - efficiency) / total_hist)
-
-# # Plotting the heatmap
-# plt.figure(figsize=(12, 10))
-# bottom_ticks_values = (
-#     np.arange(3, len(length_values) + 3) * 10000 / 3080
-# )  # * (10/6.15)  # Example: double the length values
-# bottom_tick_labels = [f"{val:.1f}" for val in bottom_ticks_values]
-# heatmap = sns.heatmap(
-#     efficiency,
-#     xticklabels=bottom_tick_labels,
-#     yticklabels=brightness_values,
-#     cmap="viridis",
-#     annot=False,
-#     vmin=0,
-#     vmax=1,
-# )
-
-# # Setting the bottom axis label
-# ax = plt.gca()  # Get the current axis
-# ax.set_xlabel("Transient Duration $\sigma$ (milliseconds)", fontsize=18)  # Bottom label
-# ax.xaxis.set_label_position("bottom")  # Ensure the label is positioned at the bottom
-# ax.xaxis.tick_bottom()  # Ensure the ticks are at the bottom
-
-# # Customizing the bottom ticks
-# # plt.xticks(ticks=bottom_ticks_values, labels=bottom_tick_labels, fontsize=12)
-# plt.xticks(fontsize=12)
-
-# # Creating custom ticks and label for the top axis with different numbers
-# top_tick_labels = length_values
-# ax_top = ax.twiny()  # Create a new axis sharing the x-axis
-# ax_top.set_xlim(ax.get_xlim())  # Ensure the limits are shared
-# ax_top.set_xticks(np.arange(len(length_values)) + 0.5)  # Set tick positions for top
-# ax_top.set_xticklabels(top_tick_labels, fontsize=13)  # Set custom labels for top
-# ax_top.set_xlabel(
-#     "Transient Duration $\sigma$ (pixels)", fontsize=18, labelpad=10
-# )  # Top label
-
-# # Setting y-axis label and title
-# ax.set_ylabel("Transient Multiplicative Amplitude A", fontsize=18)
-# plt.title("Transient Detection Efficiency Heatmap", fontsize=20)
-
-# # Customizing tick positions and labels for the y-axis
-# plt.yticks(
-#     ticks=np.arange(len(brightness_values)) + 0.5, labels=brightness_values, fontsize=12
-# )
-
-# # Overlaying error bars and adding text annotations
-# for i in range(efficiency.shape[0]):
-#     for j in range(efficiency.shape[1]):
-#         if total_hist[i, j] > 0:  # Only annotate if there are detections
-#             # Format the annotation text
-#             text = f"{efficiency[i, j]:.2f} ± {error[i, j]:.2f}" #{total_hist[i,j]}"#
-#             # Add the text annotation in the center of each bin
-#             if efficiency[i, j]<.8:
-#                 color="white"
-#             else:
-#                 color='orange'
-#             plt.text(
-#                 j + 0.5,
-#                 i + 0.5,
-#                 text,
-#                 ha="center",
-#                 va="center",
-#                 color=color,
-#                 fontsize=11,
-#             )
-
-#             # Remove the black outline (spines) from all sides
-# for spine in ax.spines.values():
-#     spine.set_visible(False)
-
-# for spine in ax_top.spines.values():
-#     spine.set_visible(False)
-
-
-# # Adjust tick label size
-# ax.tick_params(axis="y", labelsize=12)
-# ax.tick_params(axis="x", labelsize=13)
-
-
-# # Access the colorbar and modify tick font size
-# cbar = heatmap.collections[0].colorbar  # Access the colorbar
-# cbar.ax.tick_params(labelsize=13)  # Adjust tick label size
-
-
-# plt.savefig("/home/3155/saved_loss/heatmap_"+save_name)
+    #need these for the folds
+np.save("/home/3155/saved_loss/"+save_name+"_targ_tr", targ_tr)
+np.save("/home/3155/saved_loss/"+save_name+"_bness_tr", bness_tr)
+np.save("/home/3155/saved_loss/"+save_name+"_lens_tr", lens_tr)
+np.save("/home/3155/saved_loss/"+save_name+"_info_tr", info_tr)
+np.save("/home/3155/saved_loss/"+save_name+"_info_te", info_te)
