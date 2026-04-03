@@ -2485,7 +2485,7 @@ def justxy(stamp):
 
 
 
-def inspect_stamp_and_map(df, index, eff=True, neweff="new_eff_data/", posneg=None, size=10, column=None, nn_or_imp="nn", thr=True, star=False, direcname='1020', pdirec="predsarrays"):
+def inspect_stamp_and_map(df, index, eff=True, neweff="new_eff_data/", posneg=None, size=10, column=None, nn_or_imp="nn", thr=True, varthresh=.9999,star=False, direcname='1020', pdirec="predsarrays"):
     '''
     for efficiency data
     '''
@@ -2498,7 +2498,7 @@ def inspect_stamp_and_map(df, index, eff=True, neweff="new_eff_data/", posneg=No
             print("Need posneg if you want to see the correct pimg...")
         if posneg=="pos":
             extension = "_1_implanted_pos.npy"
-            if neweff=="new_eff_data/":
+            if neweff=="new_eff_data/" or neweff=="nosat_eff_data/":
                 extension = "_"+str(df.loc[index, "quad"])+".npy"
             
             fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/'+neweff+'full_image_implantations_pos/images/'
@@ -2506,7 +2506,7 @@ def inspect_stamp_and_map(df, index, eff=True, neweff="new_eff_data/", posneg=No
 
         elif posneg=="neg":
             extension = "_1_implanted_neg.npy"
-            if neweff=="new_eff_data/":
+            if neweff=="new_eff_data/" or neweff=="nosat_eff_data/":
                 extension = "_"+str(df.loc[index, "quad"])+".npy"
             
             fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/'+neweff+'full_image_implantations_neg/images/'
@@ -2564,7 +2564,7 @@ def inspect_stamp_and_map(df, index, eff=True, neweff="new_eff_data/", posneg=No
                     pimg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
         else:
             pfile = df.loc[index]["filename"]+"_extraction_predsarray_1_predsarray.npy"
-            if neweff=="new_eff_data/":
+            if neweff=="new_eff_data/" or neweff=="nosat_eff_data/":
                 pfile = df.loc[index]["filename"]+"_" + str(df.loc[index]["quad"])+"_predsarray.npy"
             predsarray = np.load(ppath+pfile)
             if df.loc[index, "type"]=="pos":
@@ -2592,7 +2592,7 @@ def inspect_stamp_and_map(df, index, eff=True, neweff="new_eff_data/", posneg=No
                     pimg[
                         col - size  - wid : col + size - wid,
                         row  - size - wid: row  + size - wid,
-                    ].T>.9999
+                    ].T>varthresh
                 )
     else:
         ax[1].imshow(
@@ -2607,7 +2607,7 @@ def inspect_stamp_and_map(df, index, eff=True, neweff="new_eff_data/", posneg=No
                     pimg[
                         col - size  - wid: col + size - wid,
                         row  - size - wid : row  + size - wid,
-                    ].T>.9999
+                    ].T>varthresh
                 )
         ax[2].set_title("CNN Thresholded")
     if star==True:
@@ -2650,7 +2650,10 @@ def inspect_stamp_and_map(df, index, eff=True, neweff="new_eff_data/", posneg=No
         rotation=0,
         zorder=10,
     )
-        ax[0].set_title("Injected image, Index "+str(index)+ ", A = "+str(df["A_from_implant"].loc[index])+", sig = "+str(df["sig_from_implant"].loc[index]))
+        if np.abs(df['dist_to_implant'].loc[index])<30:
+            ax[0].set_title("Injected image, Index "+str(index)+ ", A = "+str(df["A_from_implant"].loc[index])+", sig = "+str(df["sig_from_implant"].loc[index]))
+        else:
+            ax[0].set_title("No nearby injections")
     else:
         ax[0].set_title("Injected image, Index "+str(index))
         
@@ -3365,24 +3368,74 @@ def inspect_stamp_and_all_maps(df, index, eff=True, posneg=None, size=10, column
     fig.colorbar(imj, orientation='horizontal')
     plt.show()
     
-def show_confusion_matrix(save_name, sats=False, label_pred_te=None, targ_te=None, folds=False):
+def show_confusion_matrix(save_name, sats=False, label_pred_te=None, targ_te=None, folds=False, title=None, absolute=False, mask=None):
     foldses = ["0","1","2","3","4"]
-
+    if absolute==False:
+        tonorm="true"
+    elif absolute==True:
+        tonorm=None
     # feat_te = np.load("/home/3155/saved_loss/targ_te_"+save_name+".npy")
+    if sats==True:
+        display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak", "Satellite"]
+    else:
+        display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak"]
     if type(targ_te)!=np.ndarray:
         targ_te = np.load("/home/3155/saved_loss/targ_te_"+save_name+".npy")
-    if type(label_pred_te)!=np.ndarray:
+    if 1==1: #too lazy to de-indent
         print("loading data")
-        if folds==True:
-            for fold in foldses:
-                label_pred_te = np.load("/home/3155/saved_loss/label_pred_te_"+save_name+"_fold_"+fold+".npy")
-                if sats==True:
+        if folds!=True:
+            if type(label_pred_te)!=np.ndarray:
+                if type(folds)==int:
+                    label_pred_te = np.load("/home/3155/saved_loss/label_pred_te_"+save_name+"_fold_"+str(folds)+".npy")
+                elif folds=='average':
+                    label_pred_tes = []
+                    for fold in foldses:
+                        label_pred_tes.append(np.load("/home/3155/saved_loss/label_pred_te_"+save_name+"_fold_"+str(fold)+".npy"))
+                    label_pred_te = np.average(np.array(label_pred_tes),axis=0)
+                                              
+                else:
+                    label_pred_te = np.load("/home/3155/saved_loss/label_pred_te_"+save_name+".npy")
+            if 1==1:
+                    if type(mask)==np.ndarray:
+                        label_pred_te = label_pred_te[mask]
+                        targ_te = targ_te[mask]
                     disp = ConfusionMatrixDisplay.from_predictions(
                         targ_te,
                         np.argmax(label_pred_te, axis=1),
-                        display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak", "Satellite"],
+                        display_labels=display_labels,
                         cmap="bone",
-                        normalize="true",
+                        normalize=tonorm,
+                    )
+                        # Adjust tick label size
+                    disp.ax_.tick_params(axis="y", labelsize=17)
+                    disp.ax_.tick_params(axis="x", labelsize=17, rotation=45)
+                    # x.set_xticks([1, 2, 3], labels, rotation=45, ha='right')
+                
+                    # Adjust font size of numbers
+                    for text in disp.ax_.texts:  # Access text annotations
+                        text.set_fontsize(16)  # Set desired font size
+                    disp.ax_.set_xlabel("Predicted Label", fontsize=18)  # Adjust X-axis label
+                    disp.ax_.set_ylabel("True Label", fontsize=18)  # Adjust Y-axis label
+                    if title==None:
+                        title=save_name
+                    disp.ax_.set_title(title, fontsize=20)
+                
+                    cbar = disp.im_.colorbar  # Access the colorbar
+                    cbar.ax.tick_params(labelsize=16)  # Adjust tick label size
+                    plt.show()
+        elif folds==True:
+            for fold in foldses:
+                label_pred_te = np.load("/home/3155/saved_loss/label_pred_te_"+save_name+"_fold_"+fold+".npy")
+                if type(mask)==np.ndarray:
+                        label_pred_te = label_pred_te[mask]
+                        targ_te = targ_te[mask]
+                if 1==1:
+                    disp = ConfusionMatrixDisplay.from_predictions(
+                        targ_te,
+                        np.argmax(label_pred_te, axis=1),
+                        display_labels=display_labels,
+                        cmap="bone",
+                        normalize=tonorm,
                     )
                         # Adjust tick label size
                     disp.ax_.tick_params(axis="y", labelsize=17)
@@ -3398,28 +3451,28 @@ def show_confusion_matrix(save_name, sats=False, label_pred_te=None, targ_te=Non
                     cbar = disp.im_.colorbar  # Access the colorbar
                     cbar.ax.tick_params(labelsize=16)  # Adjust tick label size
                     plt.show()
-                elif sats==False:
-                    disp = ConfusionMatrixDisplay.from_predictions(
-                        targ_te,
-                        np.argmax(label_pred_te, axis=1),
-                        display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak"],
-                        cmap="bone",
-                        normalize="true",
-                        )
-                        # Adjust tick label size
-                    disp.ax_.tick_params(axis="y", labelsize=17)
-                    disp.ax_.tick_params(axis="x", labelsize=13)
+#                 elif sats==False:
+#                     disp = ConfusionMatrixDisplay.from_predictions(
+#                         targ_te,
+#                         np.argmax(label_pred_te, axis=1),
+#                         display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak"],
+#                         cmap="bone",
+#                         normalize=tonorm,
+#                         )
+#                         # Adjust tick label size
+#                     disp.ax_.tick_params(axis="y", labelsize=17)
+#                     disp.ax_.tick_params(axis="x", labelsize=13)
             
-                    # Adjust font size of numbers
-                    for text in disp.ax_.texts:  # Access text annotations
-                        text.set_fontsize(16)  # Set desired font size
-                    disp.ax_.set_xlabel("Predicted Label", fontsize=14)  # Adjust X-axis label
-                    disp.ax_.set_ylabel("True Label", fontsize=18)  # Adjust Y-axis label
-                    disp.ax_.set_title(save_name)
+#                     # Adjust font size of numbers
+#                     for text in disp.ax_.texts:  # Access text annotations
+#                         text.set_fontsize(16)  # Set desired font size
+#                     disp.ax_.set_xlabel("Predicted Label", fontsize=14)  # Adjust X-axis label
+#                     disp.ax_.set_ylabel("True Label", fontsize=18)  # Adjust Y-axis label
+#                     disp.ax_.set_title(save_name)
             
-                    cbar = disp.im_.colorbar  # Access the colorbar
-                    cbar.ax.tick_params(labelsize=16)  # Adjust tick label size
-                    plt.show()
+#                     cbar = disp.im_.colorbar  # Access the colorbar
+#                     cbar.ax.tick_params(labelsize=16)  # Adjust tick label size
+#                     plt.show()
 
     
     
@@ -3433,12 +3486,37 @@ def show_confusion_matrix(save_name, sats=False, label_pred_te=None, targ_te=Non
    
 
 
-def heatmap(save_name):
+def heatmap(save_name, folds=False):
+    
     our_feat_te = np.load("/home/3155/saved_loss/our_feat_te_"+save_name+".npy")
     our_bness_te = np.load("/home/3155/saved_loss/our_bness_te_"+save_name+".npy")
     our_lens_te = np.load("/home/3155/saved_loss/our_lens_te_"+save_name+".npy")
-    our_pred_te_max = np.load("/home/3155/saved_loss/our_pred_te_max_"+save_name+".npy")
+
     our_targ_te = np.load("/home/3155/saved_loss/our_targ_te_"+save_name+".npy") 
+    targ_te = np.load("/home/3155/saved_loss/targ_te_"+save_name+".npy") 
+    if folds==False:
+        our_pred_te_max = np.load("/home/3155/saved_loss/our_pred_te_max_"+save_name+".npy")
+    else:
+        #can't determine the max until i average predictions
+        foldses = ["0","1","2","3","4"]
+        label_pred_tes = []
+        for fold in foldses:
+            label_pred_tes.append(np.load("/home/3155/saved_loss/label_pred_te_"+save_name+"_fold_"+str(fold)+".npy"))
+        label_pred_te = np.average(np.array(label_pred_tes),axis=0)
+        # print(label_pred_te.shape)
+        targ_te = np.load('/home/3155/saved_loss/targ_te_'+save_name+'.npy')
+        mask = np.sum(([targ_te==2],[targ_te==1]), axis=0)[0]
+        # print(mask)
+        
+        # return label_pred_te, mask
+        our_pred_te_max = np.argmax(label_pred_te[mask.astype(bool)], axis=1)
+        # print("mask above")
+        # print(label_pred_te[mask])
+        # print("above should be fine")
+        # print(our_pred_te_max)
+                    
+                    
+    
     length_values = np.unique(our_lens_te)
     trues = []
     fails = []
@@ -3499,7 +3577,7 @@ def heatmap(save_name):
     error = np.sqrt(efficiency * (1 - efficiency) / total_hist)
 
     # Plotting the heatmap
-    plt.figure(figsize=(12, 10))
+    plt.figure(figsize=(12, 12))
     bottom_ticks_values = (
         np.arange(3, len(length_values) + 3) * 10000 / 3080
     )  # * (10/6.15)  # Example: double the length values

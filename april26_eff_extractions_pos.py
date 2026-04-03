@@ -62,7 +62,7 @@ to_append = np.array(["_0", "_1","_2","_3","_4"])
 # In[68]:
 
 path_start = "/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_pos/predsarrays_"
-paths = [path_start+a for a in to_append]
+paths = [path_start+name+a + "/" for a in to_append]
 # path = os.path.join(parent_d, d)
 for path in paths:
     os.mkdir(path)
@@ -116,7 +116,7 @@ for i, suffix in enumerate(to_append):
         )
         image = norm
         path = (
-            fpath_extractions_save
+            fpath_extractions_save 
             + str(filename_start)
         )
 

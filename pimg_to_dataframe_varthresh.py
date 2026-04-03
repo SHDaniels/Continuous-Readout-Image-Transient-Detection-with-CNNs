@@ -13,8 +13,9 @@ import sys
 abst_thr = float(sys.argv[2])
 
 fpath_extractions_saveds = [
-        "/lustre/lrspec/ZTF_data/efficiency_testing/new_eff_data/full_image_implantations_pos/predsarrays_"+sys.argv[1]+"/", "/lustre/lrspec/ZTF_data/efficiency_testing/new_eff_data/full_image_implantations_neg/predsarrays_"+sys.argv[1]+"/",
-]
+        #"/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_pos/predsarrays_"+sys.argv[1]+"/"], 
+"/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_neg/predsarrays_"+sys.argv[1]+"/",
+#]
 
 
 # save_direc = "1020jan26"

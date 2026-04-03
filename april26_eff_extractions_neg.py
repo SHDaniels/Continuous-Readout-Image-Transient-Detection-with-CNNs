@@ -45,67 +45,20 @@ name = sys.argv[1]
 
 # some stuff that will stay the same
 wid = 10
-# fpath_image = "/lustre/lrspec/ZTF_data/2022_1014_copy/implantations/images/"
-# fpath_info = "/lustre/lrspec/ZTF_data/2022_1014_copy/implantations/info/"
-# fpath_extractions = "/lustre/lrspec/ZTF_data/2022_1014_copy/full_transient_extractions/"
-
-# image_directory = os.fsencode(fpath_image)
-
-
-# In[6]:
-
-
-# model_best = keras.models.load_model("/home/3155/CNN_"+name)
-
-
-# In[68]:
-
-
-
-
-# In[91]:
-
-# '/lustre/lrspec/ZTF_data/science_extractions/to_extract/20210622_minus_extras/',
-#
-
-# data_direcs = [
-#     "/lustre/lrspec/ZTF_data/efficiency_testing/new_eff_data/full_image_implantations_neg/images/"]
-# # , "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/images/"
-#     ]
-
-# save_direcs = [
-#         "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/presdarrays_both/", "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/presdarrays_both/"
-# ]
-
-# save_direcs = [
-#         "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/predsarrays_dup/", "/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/predsarrays_dup/"
-# ]
-
-# save_direcs = [
-#         "/lustre/lrspec/ZTF_data/efficiency_testing/new_eff_data/full_image_implantations_neg/predsarrays_"+name+"/"
-# ]
-
 
 
 to_append = np.array(["_0", "_1","_2","_3","_4"])
 # In[68]:
 
-path_start = "/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_neg/predsarrays_"+name
-paths = [path_start+a for a in to_append]
+path_start = "/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_neg/predsarrays_"
+paths = [path_start+name+a + "/" for a in to_append]
 # path = os.path.join(parent_d, d)
 for path in paths:
     os.mkdir(path)
 
-# In[91]:
-
-# '/lustre/lrspec/ZTF_data/science_extractions/to_extract/20210622_minus_extras/',
-#
 
 data_direc = "/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_neg/images/"
     
-
-
-
 
 
 
@@ -118,7 +71,7 @@ for i, suffix in enumerate(to_append):
     wid = 10
     abst_thr = 0.9999
     fpath_extractions_save = save_direc
-    
+
 
     for i, file in enumerate(os.listdir(data_direc)): 
         image_filename = os.fsdecode(file)
@@ -140,7 +93,7 @@ for i, suffix in enumerate(to_append):
         )
         image = norm
         path = (
-            fpath_extractions_save
+            fpath_extractions_save 
             + str(filename_start)
         )
 
@@ -150,4 +103,3 @@ for i, suffix in enumerate(to_append):
         del image
         # del hdul #may not need this when we have with as
         gc.collect()
-

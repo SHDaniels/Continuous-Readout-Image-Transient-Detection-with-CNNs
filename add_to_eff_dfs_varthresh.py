@@ -26,8 +26,9 @@ import sys
 df_names = [sys.argv[1]]
 thresh = sys.argv[2]
 
-df_neg_base_path = "/lustre/lrspec/ZTF_data/efficiency_testing/new_eff_data/full_image_implantations_neg/"
-df_pos_base_path = "/lustre/lrspec/ZTF_data/efficiency_testing/new_eff_data/full_image_implantations_pos/"
+
+df_pos_base_path = "/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_pos/"
+df_neg_base_path = "/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_neg/"
 
 # df_paths = ["predsarrays/",
 #                 "presdarrays_flipped/",
@@ -37,12 +38,12 @@ df_paths = [ "predsarrays_"+sys.argv[1]+"/"]
 
 for i, name in enumerate(df_names):
        
-    df = pd.read_csv(f"{df_pos_base_path+df_paths[i]}"+"df_concat_thr_"+str(thresh))
-    dup = rff.find_dups(df)
-    matched = rff.match_implantations_eff(dup, "pos", neweff='new_eff_data/')
-    matched.to_csv(f"{df_pos_base_path+df_paths[i]}"+"df_matched_thr_"+str(thresh)) 
+#     df = pd.read_csv(f"{df_pos_base_path+df_paths[i]}"+"df_concat_thr_"+str(thresh))
+#     dup = rff.find_dups(df)
+#     matched = rff.match_implantations_eff(dup, "pos", neweff='nosat_eff_data/')
+#     matched.to_csv(f"{df_pos_base_path+df_paths[i]}"+"df_matched_thr_"+str(thresh)) 
     df = pd.read_csv(f"{df_neg_base_path+df_paths[i]}"+"df_concat_thr_"+str(thresh))
     dup = rff.find_dups(df)
-    matched = rff.match_implantations_eff(dup, "neg", neweff='new_eff_data/')
+    matched = rff.match_implantations_eff(dup, "neg", neweff='nosat_eff_data/')
     matched.to_csv(f"{df_neg_base_path+df_paths[i]}"+"df_matched_thr_"+str(thresh))
  
