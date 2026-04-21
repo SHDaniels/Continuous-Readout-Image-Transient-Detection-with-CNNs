@@ -1162,12 +1162,24 @@ def get_snr_integrated(tot, row, new_width_restriction=True):
     '''
     newwid = 10
     # print("newwid ", newwid)
+
+    
     if new_width_restriction:
         tallest_index = np.argmax(tot[row - newwid : row + newwid])
         # print("tallest_index, ", tallest_index)
         tallest_index_absolute = tallest_index+(row - newwid)
+        leftestleft, rightestleft, leftestright, rightestright = tallest_index_absolute - 100 - newwid,tallest_index_absolute - newwid, tallest_index_absolute + newwid,  tallest_index_absolute + 100 + newwid
+        bounds = np.array([leftestleft, rightestleft, leftestright, rightestright])
+    # print(bounds)
+        for i, bound in enumerate(bounds):
+            if bound < 0:
+                bounds[i] = 0
+            elif bound > 3079:
+                bounds[i] = 3079
         # print("absolute ",tallest_index_absolute)
-        local_outside = np.concatenate((tot[ tallest_index_absolute - 100 - (newwid**2) : tallest_index_absolute - (newwid**2)], tot[tallest_index_absolute + (newwid**2) : tallest_index_absolute + 100 + (newwid**2)]))
+        # local_outside = np.concatenate((tot[ tallest_index_absolute - 100 - (newwid**2) : tallest_index_absolute - (newwid**2)], tot[tallest_index_absolute + (newwid**2) : tallest_index_absolute + 100 + (newwid**2)]))
+        local_outside = np.concatenate((tot[ bounds[0] : bounds[1]], tot[bounds[2] : bounds[3]]))
+
         local_average_outside = np.average(local_outside)
         tot_subtracted = np.abs(tot - local_average_outside)
         height = tot_subtracted[tallest_index_absolute]
@@ -1176,7 +1188,15 @@ def get_snr_integrated(tot, row, new_width_restriction=True):
         half_max = height/2
         row = tallest_index_absolute #so the rest can stay the same
     else: #old version
-        local_outside = np.concatenate((tot[ row - 100 - newwid : row - newwid], tot[row + newwid : row + 100 + newwid]))
+        leftestleft, rightestleft, leftestright, rightestright = row - 100 - newwid,row - newwid, row + newwid,  row + 100 + newwid
+        bounds = np.array([leftestleft, rightestleft, leftestright, rightestright])
+    # print(bounds)
+        for i, bound in enumerate(bounds):
+            if bound < 0:
+                bounds[i] = 0
+            elif bound > 3079:
+                bounds[i] = 3079
+        local_outside = np.concatenate((tot[ bounds[0] : bounds[1]], tot[bounds[2] : bounds[3]]))
         local_average_outside = np.average(local_outside)
         
         tot_subtracted = np.abs(tot - local_average_outside)
@@ -1199,6 +1219,13 @@ def get_snr_integrated(tot, row, new_width_restriction=True):
     signal_local = np.sqrt(np.abs(integrated_window))
     noise_local = np.std(local_outside)
     noise_global = np.std(np.concatenate((tot[ 100 : row - newwid**2], tot[row + newwid**2 : -100])))
+    if 100 > row - newwid**2:
+        noise_global = np.std(tot[row + newwid**2 : -100])
+    elif row + newwid**2 > 2979:
+        noise_global = np.std(tot[ 100 : row - newwid**2])
+    else:
+        noise_global = np.std(np.concatenate((tot[ 100 : row - newwid**2], tot[row + newwid**2 : -100])))
+
     snr_local = signal_local/noise_local
     snr_global = signal_local/noise_global
     return snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local
@@ -2139,21 +2166,19 @@ def get_tot_npy(
     note: uses loc instead of iloc
     """
     if posneg=="pos":
-        extension = "_1_implanted_pos.npy"
-        fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_pos/images/'
+        fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_pos/images/'
 
     elif posneg=="neg":
-        extension = "_1_implanted_neg.npy"
-        fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/full_image_implantations_neg/images/'
+        fpath = '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_neg/images/'
 
     wideval = half_aperture
     wid = 10
-    fname = df.loc[index]["filename"] + extension
+    quad = int(df.loc[index]["quadrant"])
+    fname = df.loc[index]["filename"] + '_'+str(quad)+'.npy'
     row = (
         int(df.loc[index]["row_from_nn"]) + 10
     )  # we add 10 here bc that's the cnn offset of returned values
     col = int(df.loc[index]["col_from_nn"]) + 10
-    quad = int(df.loc[index]["quadrant"])
     column = int(col)
 
     path = fpath + fname
@@ -2215,9 +2240,9 @@ def add_sobel_ratio_fast(df, direcname='1020'):
     # i=0
     for filename, group in df.groupby('filename'):     
         fpath = (
-            "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
+            "/lustre/lrspec/ZTF_data/2022/"
             + direcname
-            + "_minus_extras/"
+            + "/"
         )
         path = fpath + filename+'fits.fz'
         with fits.open(path) as hdul:
@@ -2260,14 +2285,14 @@ def get_stamp_from_hdul(hdul, index, direcname, df, norm=True, quad=None):
         stamp = normalized[row - 10 : row + 10, col - 10 : col + 10]
         # plt.imshow(stamp)
         # plt.colorbar()
-        # background = get_image_background(normalized)
-        return stamp #, background
+        background = get_image_background(normalized)
+        return stamp, background
         
     stamp = file1_array[row - 10 : row + 10, col - 10 : col + 10]
     # plt.imshow(stamp)
     # plt.colorbar()
-    # background = get_image_background(file1_array)
-    return stamp #, background
+    background = get_image_background(file1_array)
+    return stamp, background
 
 def get_stamp_from_df_eff(index, df, posneg=None, norm=False, quad=None):
     """
@@ -2979,8 +3004,9 @@ def make_obj_list(predsarray, abst_thr, fname, quad):
     # pimg_streak = predsarray[:, 4].reshape(ncol - 2 * wid, nrow - 2 * wid)
     pimg_neg = predsarray[:, 2].reshape(ncol - 2 * wid, nrow - 2 * wid)
     pimg_cr = predsarray[:, 3].reshape(ncol - 2 * wid, nrow - 2 * wid)
+    pimg_sat = predsarray[:, 5].reshape(ncol - 2 * wid, nrow - 2 * wid)
 
-    pimg_both = pimg_pos + pimg_neg
+    # pimg_both = pimg_pos + pimg_neg
 
     structure = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]  # for what counts as one object
 
@@ -3002,7 +3028,7 @@ def make_obj_list(predsarray, abst_thr, fname, quad):
             )
         ).T
     else:
-        poslist = ["hi", "pos", 0, 0, 0]
+        poslist = 0
 
     # FOR NEG
     thrdet = pimg_neg > abst_thr
@@ -3023,7 +3049,8 @@ def make_obj_list(predsarray, abst_thr, fname, quad):
                 (fnames, negs, loc_list_neg[:, 0], loc_list_neg[:, 1], objsizes_neg)
             )
         ).T
-
+    else:
+        neglist = 0
     # FOR CRS
     thrdet = pimg_cr > abst_thr
     threshed = thrdet.T  # it takes the transposed pimg
@@ -3047,50 +3074,78 @@ def make_obj_list(predsarray, abst_thr, fname, quad):
         ).T
     else:
         crlist = 0
-    # FOR BOTH
-    thrdet = pimg_both > abst_thr
+#     # FOR BOTH
+#     thrdet = pimg_both > abst_thr
+#     threshed = thrdet.T  # it takes the transposed pimg
+
+#     labs, nlabs = snm.label(threshed, structure)
+#     loc_list_both = snm.center_of_mass(threshed, labs, range(1, nlabs + 1))
+#     loc_list_both = np.array(loc_list_both)
+
+#     objsizes_both = pr.get_objsizes(labs, nlabs)
+
+#     fnames = np.full(len(loc_list_both), fname)
+#     boths = np.full(len(loc_list_both), "both")
+#     if len(loc_list_both) > 0:
+#         bothlist = (
+#             np.vstack(
+#                 (fnames, boths, loc_list_both[:, 0], loc_list_both[:, 1], objsizes_both)
+#             )
+#         ).T
+    thrdet = pimg_sat > abst_thr
     threshed = thrdet.T  # it takes the transposed pimg
 
     labs, nlabs = snm.label(threshed, structure)
-    loc_list_both = snm.center_of_mass(threshed, labs, range(1, nlabs + 1))
-    loc_list_both = np.array(loc_list_both)
+    loc_list_sat = snm.center_of_mass(threshed, labs, range(1, nlabs + 1))
+    loc_list_sat = np.array(loc_list_sat)
 
-    objsizes_both = pr.get_objsizes(labs, nlabs)
+    objsizes_sat = pr.get_objsizes(labs, nlabs)
 
-    fnames = np.full(len(loc_list_both), fname)
-    boths = np.full(len(loc_list_both), "both")
-    if len(loc_list_both) > 0:
-        bothlist = (
-            np.vstack(
-                (fnames, boths, loc_list_both[:, 0], loc_list_both[:, 1], objsizes_both)
-            )
+    fnames = np.full(len(loc_list_sat), fname)
+    if len(loc_list_sat) > 0:
+        sats = np.full(len(loc_list_sats), "sat")
+        # print(np.shape(fnames))
+        # print(np.shape(crs))
+        # print(np.shape(loc_list_cr[:,0]))
+        # print(np.shape(loc_list_cr[:,1]))
+        # print(np.shape(objsizes_cr))
+        satlist = (
+            np.vstack((fnames, sats, loc_list_sat[:, 0], loc_list_sat[:, 1], objsizes_sat))
         ).T
-    
+    else:
+        satlist = 0
 
-    del pimg_cr
-    del pimg_pos
-    del pimg_neg
-    # del pimg_bg
-    # del pimg_streak
-    del thrdet
-    del loc_list_pos
-    del loc_list_neg
-    del objsizes_pos
-    del objsizes_neg
-    del labs
-    del threshed
+    # del pimg_cr
+    # del pimg_pos
+    # del pimg_neg
+    # # del pimg_bg
+    # del pimg_sat
+    # del thrdet
+    # del loc_list_pos
+    # del loc_list_neg
+    # del objsizes_pos
+    # del objsizes_neg
+    # del labs
+    # del threshed
     gc.collect()
 
     # np.save(path, n_loc_size_ray_b)
-
-    if isinstance(crlist, np.ndarray):
-        listlist = np.vstack((poslist, neglist, crlist, bothlist))
+    if isinstance(poslist, np.ndarray):
+        listlist = poslist
+        for listype in [neglist, crlist, satlist]:
+            if isinstance(listype, np.ndarray):
+                listlist = np.vstack((listlist, listype))
+        alllist = pd.DataFrame(listlist)
+    elif isinstance(neglist, np.ndarray):
+        listlist = neglist
+        for listype in [poslist, crlist, satlist]:
+            if isinstance(listype, np.ndarray):
+                listlist = np.vstack((listlist, listype))
+        alllist = pd.DataFrame(listlist)
     else:
-        if isinstance(neglist, np.ndarray):
-            listlist = np.vstack((poslist, neglist, bothlist))
-        else:
-            listlist = np.vstack((poslist, bothlist))
-    alllist = pd.DataFrame(listlist)
+        print("NO DETECTIONS IN THIS FILE")
+        alllist = None
+        return alllist
     
     
 
@@ -3658,3 +3713,61 @@ def heatmap(save_name, folds=False):
     # Access the colorbar and modify tick font size
     cbar = heatmap.collections[0].colorbar  # Access the colorbar
     cbar.ax.tick_params(labelsize=13)  # Adjust tick label size
+    
+    
+def make_aggregated_transient_detections_df(olddf, threshold=30):
+    '''
+    this de-duplicates transients that are within threshold, both pos and neg transients
+    30 performs the best for thr=.99 
+    lower than 30 decreases precision'''
+    df = olddf.copy() #just to make sure i dont accidentally modify the old one in place
+    newdf = pd.DataFrame()
+    for filename, filenamegroup in df.groupby('filename'):  
+        for quad, quadgroup in filenamegroup.groupby('quad'):
+            for closest_x, closest_xgroup in quadgroup.groupby('closest_x'):
+                ignore_in_this_group = []
+                for i in closest_xgroup.index:
+                    closest_idx = []
+                    original_col = closest_xgroup.loc[i,'col_from_nn']
+                    original_row = closest_xgroup.loc[i,'row_from_nn']
+                    for j in closest_xgroup.index:
+                        if j not in ignore_in_this_group:
+                            if (np.abs(closest_xgroup.loc[j,'col_from_nn']-original_col)<5)*(np.abs(closest_xgroup.loc[j,'row_from_nn']-original_row)<threshold)*(j not in ignore_in_this_group):
+                                # if (closest_xgroup.loc[j,'dist_to_implant']>20) or (closest_xgroup.loc[j,'A_from_implant']==closest_xgroup.loc[i,'A_from_implant']): 
+                                #     #either matched to the same one or far away
+                                    closest_idx.append(j)
+                                    ignore_in_this_group.append(j)
+                        # print(closest_idx)
+                    if len(closest_idx)>0:
+                        new_transient_y = np.average(closest_xgroup.loc[closest_idx, 'row_from_nn'])
+                        original_rows = np.array(closest_xgroup.loc[closest_idx, 'row_from_nn'])
+                        new_transient_x = np.average(closest_xgroup.loc[closest_idx, 'col_from_nn'])
+                        original_cols = np.array(closest_xgroup.loc[closest_idx, 'col_from_nn'])
+                        # print(closest_xgroup.loc[closest_idx, 'col_from_nn'])
+                        # print(new_transient_x)
+                        therow = closest_xgroup.loc[i].copy()
+                        detection_sizes = np.array(closest_xgroup.loc[closest_idx, 'detection_size'])
+                        therow['row_from_nn']=new_transient_y
+                        therow['col_from_nn']=new_transient_x
+                        therow['original_cols']=original_cols
+                        therow['original_rows']=original_rows
+                        therow['detection_size']=np.sum(closest_xgroup.loc[closest_idx, 'detection_size'])
+                        
+                        detection_sizes = np.array(closest_xgroup.loc[closest_idx, 'detection_size'])
+                        therow['detection_sizes']=detection_sizes
+                        if len(closest_idx)>1:
+                            modified_flag=True
+                            therow['type']='both'
+                        else:
+                            modified_flag=False
+                        therow['modified_flag'] = modified_flag
+                        # therow['dist_to_implant'] = np.sqrt((new_transient_x-closest_xgroup.loc[i, 'col_from_implant'])**2+(new_transient_y-closest_xgroup.loc[i, 'row_from_implant'])**2)
+                        # print(therow)
+                        newdf = pd.concat([newdf, therow.to_frame().T], ignore_index=True)
+                    # newdf.append(therow, ignore_index=True)
+                        # print(newdf)
+                        # closest_xgroup.drop(index=closest_idx)
+                        # print(len(closest_xgroup))
+            # break
+        # for idx in group.index:
+    return newdf
