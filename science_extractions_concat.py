@@ -4,7 +4,6 @@
 # In[21]:
 '''
 concatenate dataframes from all the predictions
-must run with folder path and save name when you run the script!
 '''
 
 import numpy as np
@@ -22,7 +21,7 @@ folder_path = "/lustre/lrspec/ZTF_data/science_extractions/1020april26/average/"
 #name to save (saves in same path)
 save_name = "concat"
 
-extension = "sobel"#"matched"
+extension = "_dedup_snr"#"matched"
 
 
 # # Step 1: Set the folder path where your DataFrames are stored

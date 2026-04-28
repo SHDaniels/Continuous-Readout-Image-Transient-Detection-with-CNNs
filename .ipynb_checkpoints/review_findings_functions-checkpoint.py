@@ -111,147 +111,6 @@ def get_image_background(image):
     return background
 
 
-# def get_rfft_sq(index, direcname, df):
-#     fname = df.iloc[index]["filename"]+"fits.fz"
-#     row = int(df.iloc[index]["row_from_nn"])+10
-#     col = int(df.iloc[index]["col_from_nn"])+10
-#     fpath = "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"+direcname+"_minus_extras/"
-#     path = fpath+fname
-#     hdul=fits.open(path)
-#     file1_array = hdul[1].data
-#     image = (file1_array-np.min(file1_array))/(np.max(file1_array)-np.min(file1_array)) #norm
-
-
-#     background = get_image_background(image)
-
-#         #subtracting background
-#     imagenobackground = image - np.full(np.shape(image),background)
-#     averages = np.average(imagenobackground, axis=0)
-#     mid = col
-#     column = col
-#     indices_to_check = [mid-4, mid-3, mid-2, mid-1, mid, mid+1, mid+2, mid+3]
-#     column_indices = []
-#     for index in indices_to_check:
-#         if averages[index]>.01:
-#             column_indices.append(index)
-#     #print(column_indices)
-#     streaks = np.zeros(( len(column_indices), len(image[:,column])))
-#     #print(streaks.shape)
-#     for i, index in enumerate(column_indices):
-#         streaks[i] = image[:,index]
-#     streakavg = np.average(streaks, axis=0)
-#     return np.square(np.real(np.fft.rfft(streakavg)[1:]))
-
-
-# def plot_time_series_from_df_3(df, index, direcname):
-#     '''
-
-
-#     '''
-#     # index=2
-#     # df=df_0820_short
-#     # direcname = "0820"
-#     wid=10
-#     fname = df.iloc[index]["filename"]+"fits.fz"
-#     row = int(df.iloc[index]["row_from_nn"])+10
-#     col = int(df.iloc[index]["col_from_nn"])+10
-#     fpath = "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"+direcname+"_minus_extras/"
-#     path = fpath+fname
-#     hdul=fits.open(path)
-#     file1_array = hdul[1].data
-#     image = (file1_array-np.min(file1_array))/(np.max(file1_array)-np.min(file1_array)) #norm
-#     plt.rcParams["figure.figsize"] = (7, 7)
-#     plt.rcParams["image.interpolation"] = "nearest"
-#     plt.rcParams["image.cmap"] = "gist_gray"
-
-#     column = int(col)
-#     gs_kw = dict(width_ratios=[3, 2, 1], height_ratios=[1,  2])
-#     fig, axd = plt.subplot_mosaic([['upper left', 'upper mid', 'upper right'],
-#                                ['lower left', 'lower mid','lower right']],
-#                               gridspec_kw=gs_kw, figsize=(7.5, 3.5),
-#                               layout="constrained")
-#     #note: the scatter plots are shifted in the positive x direction by wid,
-#     #so that they line up with the images
-
-#     background = get_image_background(image)
-
-#         #subtracting background
-#     imagenobackground = image - np.full(np.shape(image),background)
-#     averages = np.average(imagenobackground, axis=0)
-#     mid = int(col)
-#     indices_to_check = [mid-4, mid-3, mid-2, mid-1, mid, mid+1, mid+2, mid+3]
-#     column_indices = []
-#     for ind in indices_to_check:
-#         if averages[ind]>.01:
-#             column_indices.append(ind)
-
-#     streaks = np.zeros(( len(column_indices), len(image[:,column])))
-#     print(column_indices)
-#     for i, inde in enumerate(column_indices):
-#         streaks[i] = image[:,inde]
-#     streakavg = np.average(streaks, axis=0)
-
-
-#     axd['lower left'].scatter(np.arange(len(streakavg)), streakavg,
-#                 s=np.full(len(image[:,column]),6), color="black",
-#                 marker="|")
-#             # s=np.full(len(image[:,column])-2*wid,3), norm=mpl.colors.Normalize(vmin=0, vmax=6),
-#             # marker="|", c=cimg.T[:,column-10], cmap="prism")
-#     axd['upper left'].imshow(np.sqrt(image).T,aspect=80,cmap="gist_gray")
-#     axd['upper left'].set_ylim(column-4,column+4)
-#     axd['upper right'].imshow(np.sqrt(image).T,aspect=1.4,cmap="gist_gray")
-#     axd['upper mid'].imshow(np.sqrt(image).T,aspect=1.4,cmap="gist_gray")
-#     axd['upper right'].set_xlim(row-9,row+9)
-#     axd['upper mid'].set_xlim(row-30,row+30)
-#     axd['upper right'].set_ylim(column-4,column+4)
-#     axd['upper mid'].set_ylim(column-4,column+4)
-#     #scatter(np.arange(len(image[:,column])-2*wid)+wid, image[wid:-wid,column],
-#     axd['lower right'].scatter(np.arange(len(streakavg)), streakavg,
-#                 s=np.full(len(image[:,column]),10), color="black",
-#                 marker="|")
-#     axd['lower mid'].scatter(np.arange(len(streakavg)), streakavg,
-#                 s=np.full(len(image[:,column]),10), color="black",
-#                 marker="|")
-#     axd['lower right'].set_xlim(row-9,row+9)
-#     axd['lower mid'].set_xlim(row-30,row+30)
-#     axd['upper right'].set_axis_off()
-#     axd['upper mid'].set_axis_off()
-#     # axd['upper left'].set_axis_off()
-#     # axd['lower right'].set_xticks([])
-#     axd['lower right'].set_yticks([])
-#     axd['lower mid'].set_yticks([])
-#     axd['upper left'].set_xticklabels([])
-#     axd['upper left'].set_yticklabels([])
-#     axd['upper left'].set_yticks([])
-#     axd['upper left'].set_xticks([])
-
-#     axd['lower left'].set_yticks([])
-#     axd['lower left'].set_xticks(np.arange(0, len(image[:, column]), 500))
-#     axd['lower left'].set_xticklabels(np.arange(0, len(image[:, column])/1000, 500/1000))
-#     axd['lower right'].set_xticks(np.linspace(row-9,row+9, 3))
-#     axd['lower mid'].set_xticks(np.linspace(row-30,row+30, 3))
-#     # axd['lower right'].set_xticklabels([.87,.88,.89])
-#     # axd['lower right'].set_xticklabels(np.arange(0, len(image[:, column])/1000, 500/1000))
-
-#     # axd['lower left'].set_yticklabels([])
-#     axd['lower left'].set_xlim(0,len(image[:,column]))
-#     axd['lower left'].set_xlabel("Time (seconds)", fontsize=12)
-#     axd['lower left'].set_ylabel("Flux (normalized)", fontsize=11)
-#     axd['upper left'].set_ylabel("Streak image", fontsize=11)
-#     axd['lower right'].set_xlabel("Time (ms)", fontsize=12)
-#     axd['lower mid'].set_xlabel("Time (ms)", fontsize=12)
-
-#     # fig.suptitle('column '+str(column)+" (b=transient, g=streak, r=background)")
-#     #plt.savefig("/home/3155/timeseries_outputs/column "+str(column))
-#     # if type(pathtosave)==str:
-#     #     plt.savefig(pathtosave+"column "+str(column))
-#     # plt.tight_layout()
-#     fig.suptitle("Streak with possible transient #"+str(index)+" from folder "+direcname, fontsize=14)
-#     plt.show()
-#     plt.close()
-
-
-#
 
 
 def get_sobel_ratio(stamp):
@@ -266,7 +125,7 @@ def get_sobel_ratio(stamp):
     return sobel_ratio, Lx, Ly
 
 
-def get_stamp_from_df(index, df, direcname="2022/1020/", norm=True, quad=None, addrow=0, addcol=0, iloc=False):
+def get_stamp_from_df(index, df, direcname="2022/1020/", norm=True, quad=None, addrow=0, addcol=0, iloc=False,imgsize=10):
     """
     returns a 20x20 numpy array of brightnesses centered around the detection
     located at index of dataframe df
@@ -299,7 +158,7 @@ def get_stamp_from_df(index, df, direcname="2022/1020/", norm=True, quad=None, a
         normalized = (file1_array - np.min(file1_array)) / (
             np.max(file1_array) - np.min(file1_array)
         )  # norm
-        stamp = normalized[row - 10 : row + 10, col - 10 : col + 10]
+        stamp = normalized[row - imgsize : row + imgsize, col - imgsize : col + imgsize]
         # plt.imshow(stamp)
         # plt.colorbar()
         background = get_image_background(normalized)
@@ -340,160 +199,6 @@ def add_sobel_ratio(df, direcname='1020', eff=False):
     return df
 
 
-# def plot_time_series(df, index, direcname):
-#     '''
-#     this plots a time series from a dataframe, making it and easy to diagnose
-#     inputs: dataframe, index, directory where the images live
-#     outputs: none, but plots.
-#     specifications: both poisson and stdv error, no normalization
-#     background is subtracted
-
-#     '''
-#     # index=2
-#     # df=df_0820_short
-#     # direcname = "0820"
-#     wid=10
-#     fname = df.iloc[index]["filename"]+"fits.fz"
-#     row = int(df.iloc[index]["row_from_nn"])+10
-#     col = int(df.iloc[index]["col_from_nn"])+10
-#     fpath = "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"+direcname+"_minus_extras/"
-#     path = fpath+fname
-#     hdul=fits.open(path)
-#     # print(path)
-#     file1_array = hdul[1].data
-#     norm = (file1_array-np.min(file1_array))/(np.max(file1_array)-np.min(file1_array)) #norm
-#     image = file1_array
-#     plt.rcParams["figure.figsize"] = (10, 7)
-#     plt.rcParams["image.interpolation"] = "nearest"
-#     plt.rcParams["image.cmap"] = "gist_gray"
-
-#     column = int(col)
-
-#     #note: the scatter plots are shifted in the positive x direction by wid,
-#     #so that they line up with the images
-
-#     gs_kw = dict(width_ratios=[3, 2, 1], height_ratios=[1,  2])
-#     fig, axd = plt.subplot_mosaic([['upper left', 'upper mid', 'upper right'],
-#                                ['lower left', 'lower mid','lower right']],
-#                               gridspec_kw=gs_kw, figsize=(7.5, 3.5),
-#                               layout="constrained")
-
-#     background = get_image_background(image)
-
-#         #subtracting background
-#     imagenobackground = image - np.full(np.shape(image),background)
-#     averages = np.average(imagenobackground, axis=0)
-#     mid = int(col)
-#     indices_to_check = [mid-6, mid-5, mid-4, mid-3, mid-2, mid-1, mid, mid+1, mid+2, mid+3, mid+4, mid+5]
-#     column_indices = []
-#     for ind in indices_to_check:
-#         if averages[ind]>.01:
-#             column_indices.append(ind)
-
-#     streaks = np.zeros(( len(column_indices), len(image[:,column])))
-#     for i, inde in enumerate(column_indices):
-#         streaks[i] = imagenobackground[:,inde]
-#          # streaks[i] = image[:,inde]
-#     streakavg = np.average(streaks, axis=0)
-#     tot = np.sum(streaks, axis=0)
-#     sqrt = np.sqrt(tot)
-#     # fluxerr = np.divide(sqrt, len(column_indices))
-#     fluxerr = sqrt
-
-
-#     stderr = np.zeros(len(tot))
-#     for i in range(len(stderr)):
-#         if i>60 and i<(len(stderr)-60):
-#             arr = np.concatenate((tot[i-60:i-10],tot[i+10:i+60]))
-#             stderr[i]=np.std(arr)
-
-#     axd['lower left'].errorbar(np.arange(len(streakavg)), tot, yerr=fluxerr,
-#                 color="black", ecolor='blue', elinewidth=1,linestyle='none',
-#                 marker=".", markersize=1, alpha=.5, label="Poisson err")
-#             # s=np.full(len(image[:,column])-2*wid,3), norm=mpl.colors.Normalize(vmin=0, vmax=6),
-#             # marker="|", c=cimg.T[:,column-10], cmap="prism")
-#     axd['lower left'].errorbar(np.arange(len(streakavg)), tot, yerr=stderr,
-#                 color="black", ecolor='green', elinewidth=1,linestyle='none',
-#                 marker=".", markersize=1, alpha=.5, label="Stdv err")
-#     axd['lower left'].plot(np.arange(len(streakavg))[row-9:row+9], tot[row-9:row+9],
-#                 color="white", linestyle='none',
-#                 marker=".", markersize=7, markeredgecolor='black', zorder=10)
-
-
-#     axd['lower mid'].plot(np.arange(len(streakavg))[row-9:row+9], tot[row-9:row+9],
-#                 color="white", linestyle='none',
-#                 marker=".", markersize=7, markeredgecolor='black', zorder=10)
-
-#     axd['lower right'].plot(np.arange(len(streakavg))[row-9:row+9], tot[row-9:row+9],
-#                 color="white", linestyle='none',
-#                 marker=".", markersize=7, markeredgecolor='black', zorder=10, label=None)
-#     axd['upper left'].imshow(np.sqrt(image).T,aspect=70,cmap="gist_gray")
-#     axd['upper left'].set_ylim(column-5,column+5)
-#     axd['upper right'].imshow(np.sqrt(image).T,aspect=1.2,cmap="gist_gray")
-#     axd['upper right'].set_xlim(row-9,row+9)
-#     axd['upper right'].set_ylim(column-5,column+5)
-
-#     axd['lower right'].errorbar(np.arange(len(streakavg)), tot, #np.arange(len(image[:,column])), image[:,column],
-#                 color="black", #s=np.full(len(image[:,column]),10),
-#                 yerr=fluxerr,
-#                 ecolor='blue', elinewidth=1, linestyle='none',
-#                 marker=".", markersize=1, alpha=.5)
-#     axd['lower right'].errorbar(np.arange(len(streakavg)), tot, yerr=stderr,
-#                 color="black", ecolor='green', elinewidth=1,linestyle='none',
-#                 marker=".", markersize=1, alpha=.5)
-
-#     axd['lower right'].set_xlim(row-9,row+9)
-#     axd['upper right'].set_axis_off()
-
-#     axd['lower right'].set_yticks([])
-#     axd['upper left'].set_xticklabels([])
-#     axd['upper left'].set_yticklabels([])
-#     axd['upper left'].set_yticks([])
-#     axd['upper left'].set_xticks([])
-
-#     axd['lower left'].set_xticks(np.arange(0, len(image[:, column]), 500))
-#     axd['lower left'].set_xticklabels(np.arange(0, len(image[:, column])/1000, 500/1000))
-#     axd['lower right'].set_xticks(np.linspace(row-9,row+9, 3))
-
-
-#     axd['lower left'].set_xlim(0,len(image[:,column]))
-#     axd['lower left'].set_xlabel("Time (seconds)", fontsize=12)
-#     axd['lower left'].set_ylabel("Summed streak flux (counts)", fontsize=11)
-#     axd['upper left'].set_ylabel("Streak image", fontsize=11)
-#     axd['lower right'].set_xlabel("Time (ms)", fontsize=12)
-
-
-#     axd['upper mid'].imshow(np.sqrt(image).T,aspect=2,cmap="gist_gray")
-#     axd['upper mid'].set_xlim(row-30,row+30)
-#     axd['upper mid'].set_ylim(column-5,column+5)
-#     axd['lower mid'].errorbar(np.arange(len(streakavg)), tot, yerr=fluxerr,
-#                 color="black", ecolor='blue', elinewidth=1,linestyle='none',
-#                 marker=".", markersize=1, alpha=.5)
-#     # axd['lower mid'].set_xlim(row-30,row+30)
-#     axd['lower mid'].set_xlim(row-100,row+100)
-#     axd['lower mid'].set_xticks(np.linspace(row-100,row+100, 3))
-#     axd['upper mid'].set_axis_off()
-#     axd['lower mid'].set_yticks([])
-#     # axd['lower mid'].set_xticks(np.linspace(row-30,row+30, 3))
-#     axd['lower mid'].set_xlabel("Time (ms)", fontsize=12)
-#     axd['lower mid'].errorbar(np.arange(len(streakavg)), tot, yerr=stderr,
-#                 color="black", ecolor='green', elinewidth=1,linestyle='none',
-#                 marker=".", markersize=1, alpha=.5)
-#     # axd['lower left'].legend([" ","Poisson err.", "Stdv err."])
-#     axd['lower left'].legend()
-
-#     fig.suptitle("Streak with possible transient #"+str(index)+" from folder "+direcname, fontsize=14)
-#     plt.show()
-#     plt.close()
-
-# def inspect_df_time_series(reduced_df, full_df, direcname, start=0, stop=50):
-#     num = stop-start
-#     if len(reduced_df) < num:
-#         stop = len(reduced_df) + start
-#     for i in reduced_df["Unnamed: 0"][start:stop]:
-#         print("image (below): " + full_df.iloc[i]["filename"])
-#         print("transient candidate in column (streak) ", full_df.iloc[i]["col_from_nn"])
-#         plot_time_series(full_df, i, direcname)
 
 
 def reduce_edges(df, thr):
@@ -631,59 +336,6 @@ def reduce_number_in_file(df, max=1):
     return solos_df
 
 
-# def get_stdv_ratio(df, index, direcname):
-#     '''
-#     NOTE: ONLY woRKS FOR HDUL1 RIGHT NOW
-#     gets the ratio of the midpoint of the detection to the average of the streak,
-#     in units of standard deviations
-
-#     '''
-#     # index=2
-#     # df=df_0820_short
-#     # direcname = "0820"
-#     wid=10
-#     fname = df.iloc[index]["filename"]+"fits.fz"
-#     row = int(df.iloc[index]["row_from_nn"])+10
-#     col = int(df.iloc[index]["col_from_nn"])+10
-#     fpath = "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"+direcname+"_minus_extras/"
-#     path = fpath+fname
-#     hdul=fits.open(path)
-#     # print(path)
-#     file1_array = hdul[1].data
-#     norm = (file1_array-np.min(file1_array))/(np.max(file1_array)-np.min(file1_array)) #norm
-#     image = file1_array
-
-#     column = int(col)
-
-
-#     background = get_image_background(image)
-
-#         #subtracting background
-#     imagenobackground = image - np.full(np.shape(image),background)
-#     averages = np.average(imagenobackground, axis=0)
-#     mid = int(col)
-#     indices_to_check = [mid-6, mid-5, mid-4, mid-3, mid-2, mid-1, mid, mid+1, mid+2, mid+3, mid+4, mid+5]
-#     column_indices = []
-#     for ind in indices_to_check:
-#         if averages[ind]>.01:
-#             column_indices.append(ind)
-
-#     streaks = np.zeros(( len(column_indices), len(image[:,column])))
-#     for i, inde in enumerate(column_indices):
-#         streaks[i] = imagenobackground[:,inde]
-#          # streaks[i] = image[:,inde]
-#     streakavg = np.average(streaks, axis=0)
-#     tot = np.sum(streaks, axis=0)
-#     sqrt = np.sqrt(tot)
-#     # fluxerr = np.divide(sqrt, len(column_indices))
-#     fluxerr = sqrt
-
-#     stdtot = np.std(tot)
-#     centerbrightness = tot[mid]
-#     avg = np.mean(tot)
-#     diff = centerbrightness - avg
-#     diffinstd = diff/stdtot
-#     return diffinstd
 
 
 def inspect_df_with_quadrant(df, imgsize=10, star=False, clim=None, titlecol=None):
@@ -869,10 +521,13 @@ def plot_time_series_again_aperture(
     # print("indices to check")
     # print(same_img_indices)
 
+    # fpath = (
+    #     "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
+    #     + direcname
+    #     + "_minus_extras/"
+    # )
     fpath = (
-        "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
-        + direcname
-        + "_minus_extras/"
+        "/lustre/lrspec/ZTF_data/2022/1020/"
     )
     path = fpath + fname
     hdul = fits.open(path)
@@ -1145,109 +800,109 @@ def get_tot_streak(image, col, tracking=True, half_aperture=2):
     return tot, maxcols
 
 
-def get_snr_integrated(tot, row, new_width_restriction=True):
-    '''
-    not actually using the new version since updating that did not fix the efficiency problem
-    inputs: tot as in tot, maxcols = rff.get_tot(df,index)
-    row, as in row = int(df.loc[index]["row_from_nn"]) + wid
-    outputs: 
-    snr_local
-    snr_global
-    noise_local
-    noise_global
-    local_average_outside: baseline to comparison to height
-    height
-    FWHM: full width half max
-    signal_local
-    '''
-    newwid = 10
-    # print("newwid ", newwid)
+# def get_snr_integrated(tot, row, new_width_restriction=True):
+#     '''
+#     not actually using the new version since updating that did not fix the efficiency problem
+#     inputs: tot as in tot, maxcols = get_tot(df,index)
+#     row, as in row = int(df.loc[index]["row_from_nn"]) + wid
+#     outputs: 
+#     snr_local
+#     snr_global
+#     noise_local
+#     noise_global
+#     local_average_outside: baseline to comparison to height
+#     height
+#     FWHM: full width half max
+#     signal_local
+#     '''
+#     newwid = 10
+#     # print("newwid ", newwid)
 
     
-    if new_width_restriction:
-        tallest_index = np.argmax(tot[row - newwid : row + newwid])
-        # print("tallest_index, ", tallest_index)
-        tallest_index_absolute = tallest_index+(row - newwid)
-        leftestleft, rightestleft, leftestright, rightestright = tallest_index_absolute - 100 - newwid,tallest_index_absolute - newwid, tallest_index_absolute + newwid,  tallest_index_absolute + 100 + newwid
-        bounds = np.array([leftestleft, rightestleft, leftestright, rightestright])
-    # print(bounds)
-        for i, bound in enumerate(bounds):
-            if bound < 0:
-                bounds[i] = 0
-            elif bound > 3079:
-                bounds[i] = 3079
-        # print("absolute ",tallest_index_absolute)
-        # local_outside = np.concatenate((tot[ tallest_index_absolute - 100 - (newwid**2) : tallest_index_absolute - (newwid**2)], tot[tallest_index_absolute + (newwid**2) : tallest_index_absolute + 100 + (newwid**2)]))
-        local_outside = np.concatenate((tot[ bounds[0] : bounds[1]], tot[bounds[2] : bounds[3]]))
+#     if new_width_restriction:
+#         tallest_index = np.argmax(tot[row - newwid : row + newwid])
+#         # print("tallest_index, ", tallest_index)
+#         tallest_index_absolute = tallest_index+(row - newwid)
+#         leftestleft, rightestleft, leftestright, rightestright = tallest_index_absolute - 100 - newwid,tallest_index_absolute - newwid, tallest_index_absolute + newwid,  tallest_index_absolute + 100 + newwid
+#         bounds = np.array([leftestleft, rightestleft, leftestright, rightestright])
+#     # print(bounds)
+#         for i, bound in enumerate(bounds):
+#             if bound < 0:
+#                 bounds[i] = 0
+#             elif bound > 3079:
+#                 bounds[i] = 3079
+#         # print("absolute ",tallest_index_absolute)
+#         # local_outside = np.concatenate((tot[ tallest_index_absolute - 100 - (newwid**2) : tallest_index_absolute - (newwid**2)], tot[tallest_index_absolute + (newwid**2) : tallest_index_absolute + 100 + (newwid**2)]))
+#         local_outside = np.concatenate((tot[ bounds[0] : bounds[1]], tot[bounds[2] : bounds[3]]))
 
-        local_average_outside = np.average(local_outside)
-        tot_subtracted = np.abs(tot - local_average_outside)
-        height = tot_subtracted[tallest_index_absolute]
-        # print("height ",height)
-        # print("local_average_outside ", local_average_outside)
-        half_max = height/2
-        row = tallest_index_absolute #so the rest can stay the same
-    else: #old version
-        leftestleft, rightestleft, leftestright, rightestright = row - 100 - newwid,row - newwid, row + newwid,  row + 100 + newwid
-        bounds = np.array([leftestleft, rightestleft, leftestright, rightestright])
-    # print(bounds)
-        for i, bound in enumerate(bounds):
-            if bound < 0:
-                bounds[i] = 0
-            elif bound > 3079:
-                bounds[i] = 3079
-        local_outside = np.concatenate((tot[ bounds[0] : bounds[1]], tot[bounds[2] : bounds[3]]))
-        local_average_outside = np.average(local_outside)
+#         local_average_outside = np.average(local_outside)
+#         tot_subtracted = np.abs(tot - local_average_outside)
+#         height = tot_subtracted[tallest_index_absolute]
+#         # print("height ",height)
+#         # print("local_average_outside ", local_average_outside)
+#         half_max = height/2
+#         row = tallest_index_absolute #so the rest can stay the same
+#     else: #old version
+#         leftestleft, rightestleft, leftestright, rightestright = row - 100 - newwid,row - newwid, row + newwid,  row + 100 + newwid
+#         bounds = np.array([leftestleft, rightestleft, leftestright, rightestright])
+#     # print(bounds)
+#         for i, bound in enumerate(bounds):
+#             if bound < 0:
+#                 bounds[i] = 0
+#             elif bound > 3079:
+#                 bounds[i] = 3079
+#         local_outside = np.concatenate((tot[ bounds[0] : bounds[1]], tot[bounds[2] : bounds[3]]))
+#         local_average_outside = np.average(local_outside)
         
-        tot_subtracted = np.abs(tot - local_average_outside)
-        height = np.max(tot_subtracted[row - newwid : row + newwid])
-        half_max = height/2
+#         tot_subtracted = np.abs(tot - local_average_outside)
+#         height = np.max(tot_subtracted[row - newwid : row + newwid])
+#         half_max = height/2
 
     
     
-    arr_left = tot_subtracted[ : row ][::-1]
-    arr_right = tot_subtracted[row : ]
+#     arr_left = tot_subtracted[ : row ][::-1]
+#     arr_right = tot_subtracted[row : ]
     
-    left_index = next((i for i,v in enumerate(arr_left) if v<half_max), len(arr_left)-1) + 1
-    right_index = next((i for i,v in enumerate(arr_right) if v<half_max), len(arr_right)-1) + 1
-    #using the last one if none found
-    # print("indices for size of integral: ", left_index, right_index)
-    window_minus_average = tot_subtracted[row - left_index : row + right_index]
-    FWHM = len(window_minus_average)
+#     left_index = next((i for i,v in enumerate(arr_left) if v<half_max), len(arr_left)-1) + 1
+#     right_index = next((i for i,v in enumerate(arr_right) if v<half_max), len(arr_right)-1) + 1
+#     #using the last one if none found
+#     # print("indices for size of integral: ", left_index, right_index)
+#     window_minus_average = tot_subtracted[row - left_index : row + right_index]
+#     FWHM = len(window_minus_average)
     
-    integrated_window = np.sum(window_minus_average)
-    signal_local = np.sqrt(np.abs(integrated_window))
-    noise_local = np.std(local_outside)
-    noise_global = np.std(np.concatenate((tot[ 100 : row - newwid**2], tot[row + newwid**2 : -100])))
-    if 100 > row - newwid**2:
-        noise_global = np.std(tot[row + newwid**2 : -100])
-    elif row + newwid**2 > 2979:
-        noise_global = np.std(tot[ 100 : row - newwid**2])
-    else:
-        noise_global = np.std(np.concatenate((tot[ 100 : row - newwid**2], tot[row + newwid**2 : -100])))
+#     integrated_window = np.sum(window_minus_average)
+#     signal_local = np.sqrt(np.abs(integrated_window))
+#     noise_local = np.std(local_outside)
+#     noise_global = np.std(np.concatenate((tot[ 100 : row - newwid**2], tot[row + newwid**2 : -100])))
+#     if 100 > row - newwid**2:
+#         noise_global = np.std(tot[row + newwid**2 : -100])
+#     elif row + newwid**2 > 2979:
+#         noise_global = np.std(tot[ 100 : row - newwid**2])
+#     else:
+#         noise_global = np.std(np.concatenate((tot[ 100 : row - newwid**2], tot[row + newwid**2 : -100])))
 
-    snr_local = signal_local/noise_local
-    snr_global = signal_local/noise_global
-    return snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local
+#     snr_local = signal_local/noise_local
+#     snr_global = signal_local/noise_global
+#     return snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local
 
-def add_snr_integrated(df, half_aperture=2, tracking=True, wid=10):
-    """
-    returns the dataframe with new columns for outputs of
-    snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM 
-    """
-    column_names = ['snr_local', 'snr_global', 'noise_local', 'noise_global', 
-                'local_average_outside', 'height', 'FWHM', 'signal_local']
+# def add_snr_integrated(df, half_aperture=2, tracking=True, wid=10):
+#     """
+#     returns the dataframe with new columns for outputs of
+#     snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM 
+#     """
+#     column_names = ['snr_local', 'snr_global', 'noise_local', 'noise_global', 
+#                 'local_average_outside', 'height', 'FWHM', 'signal_local']
 
-    for col in column_names:
-        df[col] = np.zeros(len(df))
+#     for col in column_names:
+#         df[col] = np.zeros(len(df))
     
-    for index in df.index:
-        # print(index)
-        tot, maxcols = get_tot(df, index, half_aperture, tracking)
-        row = int(df.loc[index]["row_from_nn"]) + wid
-        snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local = get_snr_integrated(tot, row)
-        df.loc[index, column_names] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local]
-    return df
+#     for index in df.index:
+#         # print(index)
+#         tot, maxcols = get_tot(df, index, half_aperture, tracking)
+#         row = int(df.loc[index]["row_from_nn"]) + wid
+#         snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local = get_snr_integrated(tot, row)
+#         df.loc[index, column_names] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local]
+#     return df
 
 
 
@@ -2712,7 +2367,8 @@ def inspect_df_w_stamp_color(df, imgsize=10, star=False, clim=None, plot="stamp"
                 row = int(df.iloc[index]["row_from_nn"])
                 col = int(df.iloc[index]["col_from_nn"])
                 quad = int(df.iloc[index]["quadrant"])
-                stamp = df.iloc[index][plot]
+                # stamp = df.iloc[index][plot]
+                stamp, bg = get_stamp_from_df(index, df, direcname="2022/1020/", norm=True, quad=quad, addrow=0, addcol=0, iloc=True, imgsize=imgsize)
                 
                 if isinstance(stamp, str):
                     stamp = sobels_to_array(stamp)
@@ -3749,8 +3405,8 @@ def make_aggregated_transient_detections_df(olddf, threshold=30):
                         detection_sizes = np.array(closest_xgroup.loc[closest_idx, 'detection_size'])
                         therow['row_from_nn']=new_transient_y
                         therow['col_from_nn']=new_transient_x
-                        therow['original_cols']=original_cols
-                        therow['original_rows']=original_rows
+                        therow['original_cols_from_nn']=original_cols
+                        therow['original_rows_from_nn']=original_rows
                         therow['detection_size']=np.sum(closest_xgroup.loc[closest_idx, 'detection_size'])
                         
                         detection_sizes = np.array(closest_xgroup.loc[closest_idx, 'detection_size'])
@@ -3758,9 +3414,11 @@ def make_aggregated_transient_detections_df(olddf, threshold=30):
                         if len(closest_idx)>1:
                             modified_flag=True
                             therow['type']='both'
+                            
                         else:
                             modified_flag=False
                         therow['modified_flag'] = modified_flag
+                        therow['original_types']=np.array(closest_xgroup.loc[closest_idx, 'type'])
                         # therow['dist_to_implant'] = np.sqrt((new_transient_x-closest_xgroup.loc[i, 'col_from_implant'])**2+(new_transient_y-closest_xgroup.loc[i, 'row_from_implant'])**2)
                         # print(therow)
                         newdf = pd.concat([newdf, therow.to_frame().T], ignore_index=True)
@@ -3771,3 +3429,191 @@ def make_aggregated_transient_detections_df(olddf, threshold=30):
             # break
         # for idx in group.index:
     return newdf
+
+def get_snr_dimmest(tot, aggrows):
+    '''
+    inputs: tot as in tot, maxcols = get_tot(df,index)
+    aggrow is the collection of rows (positions along the streak that were agg), could be len 1
+    outputs: 
+    snr_local
+    snr_global
+    noise_local
+    noise_global
+    local_average_outside: baseline to comparison to height
+    height
+    FWHM: full width half max
+    signal_local
+    '''
+    newwid = 10
+    #check within newwid on each side, if there is more than 
+    if int(np.min(aggrows))>10: #fixing iissues when too close to sides
+        lowerlim = int(np.min(aggrows))
+    else:
+        lowerlim = 10
+    if int(np.max(aggrows))<3070:
+        upperlim = int(np.max(aggrows))
+    else:
+        upperlim = 3070
+    tallest_index = np.argmin(tot[lowerlim - newwid : upperlim + newwid])
+    # print("tallest_index, ", tallest_index)
+    tallest_index_absolute = tallest_index+(int(np.min(aggrows)) - newwid)
+    
+    #get bounds for measureing the noise
+    leftestleft, rightestleft, leftestright, rightestright = tallest_index_absolute - 200 - newwid,tallest_index_absolute - 100 - newwid, tallest_index_absolute + 100 + newwid,  tallest_index_absolute + 200 + newwid
+    bounds = np.array([leftestleft, rightestleft, leftestright, rightestright])
+    for i, bound in enumerate(bounds): #adjust if too close to the edge
+        if bound < 0:
+            bounds[i] = 0
+        elif bound > 3079:
+            bounds[i] = 3079
+    local_outside = np.concatenate((tot[ bounds[0] : bounds[1]], tot[bounds[2] : bounds[3]]))
+    local_average_outside = np.average(local_outside)
+    tot_subtracted = tot - local_average_outside
+    height = tot_subtracted[tallest_index_absolute]
+    half_max = height/2
+    row = tallest_index_absolute #so the rest can stay the same
+    arr_left = tot_subtracted[ : row ][::-1]
+    arr_right = tot_subtracted[row : ]
+    left_index = next((i for i,v in enumerate(arr_left) if v>half_max), len(arr_left)-1) 
+    right_index = next((i for i,v in enumerate(arr_right) if v>half_max), len(arr_right)-1) 
+    if right_index==0:
+        right_index=1
+    #making sure to include the row itself if none found
+    # print("indices for size of integral: ", left_index, right_index)
+    # print(height)
+    # print(half_max)
+    # print(local_average_outside)
+    window_minus_average = tot_subtracted[row - left_index : row + right_index]
+    FWHM = len(window_minus_average)
+    # print(window_minus_average)
+    integrated_window = np.sum(window_minus_average)
+    signal_local = np.sqrt(np.abs(integrated_window))
+    if integrated_window > 0: #we take the absolute value to get the signal, but i need to show
+        #that it is meaningless if the neg transient is not actually below zero etc
+        signal_local = -signal_local
+    noise_local = np.std(local_outside)
+    noise_global = np.std(np.concatenate((tot[ 100 : row - newwid**2 - 10], tot[row + newwid**2 + 10: -100])))
+    if 100 > row - newwid**2:
+        noise_global = np.std(tot[row + newwid**2 + 10: -100])
+    elif row + newwid**2 > 2979:
+        noise_global = np.std(tot[ 100 : row - newwid**2 - 10])
+    else:
+        noise_global = np.std(np.concatenate((tot[ 100 : row - newwid**2 - 10], tot[row + newwid**2 + 10: -100])))
+
+    snr_local = signal_local/noise_local
+    snr_global = signal_local/noise_global
+    return snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute
+
+
+def get_snr_brightest(tot, aggrows):
+    '''
+    inputs: tot as in tot, maxcols = get_tot(df,index)
+    aggrow is the collection of rows (positions along the streak that were agg), could be len 1
+    outputs: 
+    snr_local
+    snr_global
+    noise_local
+    noise_global
+    local_average_outside: baseline to comparison to height
+    height
+    FWHM: full width half max
+    signal_local
+    '''
+    newwid = 10
+    #check within newwid on each side, if there is more than 
+    if int(np.min(aggrows))>10: #fixing iissues when too close to sides
+        lowerlim = int(np.min(aggrows))
+    else:
+        lowerlim = 10
+    if int(np.max(aggrows))<3070:
+        upperlim = int(np.max(aggrows))
+    else:
+        upperlim = 3070
+    tallest_index = np.argmax(tot[lowerlim - newwid : upperlim + newwid])
+    # print("tallest_index, ", tallest_index)
+    tallest_index_absolute = tallest_index+(int(np.min(aggrows)) - newwid)
+    
+    #get bounds for measureing the noise
+    leftestleft, rightestleft, leftestright, rightestright = tallest_index_absolute - 200 - newwid,tallest_index_absolute - 100 - newwid, tallest_index_absolute + 100 + newwid,  tallest_index_absolute + 200 + newwid
+    bounds = np.array([leftestleft, rightestleft, leftestright, rightestright])
+    for i, bound in enumerate(bounds): #adjust if too close to the edge
+        if bound < 0:
+            bounds[i] = 0
+        elif bound > 3079:
+            bounds[i] = 3079
+    local_outside = np.concatenate((tot[ bounds[0] : bounds[1]], tot[bounds[2] : bounds[3]]))
+    local_average_outside = np.average(local_outside)
+    tot_subtracted = tot - local_average_outside
+    height = tot_subtracted[tallest_index_absolute]
+    half_max = height/2
+    row = tallest_index_absolute #so the rest can stay the same
+    arr_left = tot_subtracted[ : row ][::-1]
+    arr_right = tot_subtracted[row : ]
+    left_index = next((i for i,v in enumerate(arr_left) if v<half_max), len(arr_left)-1) #there was a +1 on each o fthese
+    right_index = next((i for i,v in enumerate(arr_right) if v<half_max), len(arr_right)-1) 
+    if right_index==0:
+        right_index=1
+    #making sure to include the row itself if none found
+    # print("indices for size of integral: ", left_index, right_index)
+    # print(height)
+    # print(half_max)
+    # print(local_average_outside)
+    window_minus_average = tot_subtracted[row - left_index : row + right_index ] #want to include the rightmost point
+    # print(window_minus_average)
+    FWHM = len(window_minus_average)
+    
+    integrated_window = np.sum(window_minus_average)
+    signal_local = np.sqrt(np.abs(integrated_window))
+    if integrated_window < 0: #we take the absolute value to get the signal, but i need to show
+        #that it is meaningless if the neg transient is not actually below zero etc
+        signal_local = -signal_local
+    noise_local = np.std(local_outside)
+    noise_global = np.std(np.concatenate((tot[ 100 : row - newwid**2 - 10], tot[row + newwid**2 + 10: -100])))
+    if 100 > row - newwid**2:
+        noise_global = np.std(tot[row + newwid**2 + 10: -100])
+    elif row + newwid**2 > 2979:
+        noise_global = np.std(tot[ 100 : row - newwid**2 - 10])
+    else:
+        noise_global = np.std(np.concatenate((tot[ 100 : row - newwid**2 - 10], tot[row + newwid**2 + 10: -100])))
+
+    snr_local = signal_local/noise_local
+    snr_global = signal_local/noise_global
+    return snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute
+
+
+
+
+
+def add_snr_both(olddf):
+    '''
+    add pos and neg integrated snrs
+    returns the dataframe with new columns for outputs of
+    snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, brightest/dimmest row 
+    currently hardcoded half ap = 2
+    '''
+    wid=10
+    df = olddf.copy()
+    column_names_brightening = ['snr_local_brightening', 'snr_global_brightening', 'noise_local_brightening', 'noise_global_brightening', 
+                'local_average_outside_brightening', 'height_brightening', 'FWHM_brightening', 'signal_local_brightening', 'central_point_brightening']
+    column_names_dimming = ['snr_local_dimming', 'snr_global_dimming', 'noise_local_dimming', 'noise_global_dimming', 
+                'local_average_outside_dimming', 'height_dimming', 'FWHM_dimming', 'signal_local_dimming', 'central_point_dimming']
+
+    for col in column_names_brightening:
+        df[col] = np.zeros(len(df))
+    for col in column_names_dimming:
+        df[col] = np.zeros(len(df))
+    for filename, filenamegroup in df.groupby('filename'):  
+        for quad, quadgroup in filenamegroup.groupby('quad'):
+            for closest_x, closest_xgroup in quadgroup.groupby('closest_x'): #which light curve it is
+                tot, maxcols = get_tot_csv(df, closest_xgroup.index[0]) #will be the same for all so just using the first
+                for index in closest_xgroup.index:
+                    # row = int(df.loc[index, "row_from_nn"]) + wid
+                    aggrows = df.loc[index, "original_rows_from_nn"] + wid
+                    #first brightening
+                    snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute = get_snr_brightest(tot, aggrows)                    
+                    df.loc[index, column_names_brightening] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute]
+                    #now dimming
+                    snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute = get_snr_dimmest(tot, aggrows)                    
+                    df.loc[index, column_names_dimming] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute]
+    return df            
+

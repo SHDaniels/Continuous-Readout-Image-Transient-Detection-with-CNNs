@@ -15,6 +15,13 @@ for i, file in enumerate(os.listdir(paths[0])):
             #make sure all 5 done
             arrays = []
             for path in paths:
-                arrays.append(np.load(path+file))
-            average = np.average(arrays, axis=0)
-            np.save(os.path.join(savedir,file), average)
+                try:
+                    arrays.append(np.load(path+file))
+                except:
+                    print("got an issue on "+path+file)
+                    continue
+            if len(arrays)==5:
+                average = np.average(arrays, axis=0)
+                np.save(os.path.join(savedir,file), average)
+            else:
+                print("didn't do the averaging for "+path+file)

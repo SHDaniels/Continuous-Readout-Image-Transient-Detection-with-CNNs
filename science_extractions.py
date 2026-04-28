@@ -48,6 +48,7 @@ path_start = "/lustre/lrspec/ZTF_data/science_extractions/1020april26/predsarray
 # for path in paths:
 #     os.mkdir(path)
 
+
 save_direc = path_start + name + suffix + "/"
 # os.mkdir(, exist_ok=True)
 
@@ -56,7 +57,7 @@ if not os.path.exists(save_direc):
 
 data_direc = "/lustre/lrspec/ZTF_data/2022/1020/"
     
-
+path_save_long_term = "/lustre/lrspec/ZTF_data/science_extractions/1020april26/average/" #cause i will delete the straight up output of this one
 
 
 # for i, suffix in enumerate(to_append):
@@ -86,6 +87,15 @@ if 1==1: #yknow indents
         ):
             print("skipping ", filename_start)
             continue
+        if os.path.isfile( #if it already exists
+            path_save_long_term
+            + str(filename_start)
+            + "_extraction_predsarray_"
+            + str(4)
+            + "_predsarray.npy"
+        ):
+            print("skipping - exists in average", filename_start)
+            continue        
         if os.path.isfile("/lustre/lrspec/ZTF_data/training_aug24/implant_train/"+image_filename): #checking it isn't in training data:
             print("skipping - in training data ", filename_start)
             continue
