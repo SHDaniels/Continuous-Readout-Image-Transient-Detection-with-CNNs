@@ -29,7 +29,7 @@ import gc  # garbage collector
 import glob  # i don't know if there is a better way to do this but this was the
 import review_findings_functions as rff
 
-
+import pandas as pd
 
 import sys
 
@@ -38,6 +38,15 @@ name = sys.argv[1]
 cnn_index = int(sys.argv[2])  # 0-4 from SLURM_ARRAY_TASK_ID
 
 suffix = f"_{cnn_index}"
+
+#they need to look like they do in the data direc /1020
+lcfilenames = pd.read_csv('/home/3155/rwe/filenames_lcs.txt', sep=" ", header=None)
+lcfilenames.columns = ["filename"]
+filelist = []
+for filename in lcfilenames['filename']:
+    file = filename[11:50]+'.fits.fz'
+    filelist.append(file)
+filelist = np.unique(filelist)
 
 # to_append = np.array(["_0", "_1","_2","_3","_4"])
 # In[68]:
@@ -70,9 +79,10 @@ if 1==1: #yknow indents
     fpath_extractions_save = save_direc
 
 
-    for i, file in enumerate(os.listdir(data_direc)): 
-        
-        image_filename = os.fsdecode(file)
+    # for i, file in enumerate(os.listdir(data_direc)): 
+    for file in filelist:
+        image_filename = file
+        # image_filename = os.fsdecode(file)
         filename_start = image_filename[:40]
         if image_filename[-9:] =="x.fits.fz": #beginning crm
             continue

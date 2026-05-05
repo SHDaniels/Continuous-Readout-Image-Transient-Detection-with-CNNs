@@ -18,10 +18,13 @@ for i, file in enumerate(os.listdir(paths[0])):
                 try:
                     arrays.append(np.load(path+file))
                 except:
-                    print("got an issue on "+path+file)
+                    print("got an issue and deleting: "+path+file)
+                    os.remove(path+file) 
                     continue
             if len(arrays)==5:
                 average = np.average(arrays, axis=0)
                 np.save(os.path.join(savedir,file), average)
+                for path in paths:
+                    os.remove(path+file) #deleting once done
             else:
                 print("didn't do the averaging for "+path+file)

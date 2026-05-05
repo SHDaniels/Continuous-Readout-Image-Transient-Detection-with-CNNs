@@ -171,32 +171,7 @@ def get_stamp_from_df(index, df, direcname="2022/1020/", norm=True, quad=None, a
     return stamp, background
 
 
-def add_sobel_ratio(df, direcname='1020', eff=False):
-    """
-    returns the dataframe with a new column of sobel ratios
-    see get_sobel_ratio(stamp)
-    """
-    sobels = np.zeros(len(df))
-    sobels_x = []
-    sobels_y = []
-    i=0
-    for index in df.index:
-        if eff:
-            stamp, bg = get_stamp_from_df_eff(index, df)
-        else:
-            stamp, bg = get_stamp_from_df(index, direcname, df, norm=False)
-        sobel, x, y = get_sobel_ratio(stamp)
-        # print(sobel)
-        # print(np.shape(x))
-        # print(np.shape(y))
-        sobels[i] = sobel
-        sobels_x.append(x)
-        sobels_y.append(y)
-        i+=1
-    df["sobel_ratio"] = sobels
-    df["sobels_x"] = sobels_x
-    df["sobels_y"] = sobels_y
-    return df
+
 
 
 
@@ -800,109 +775,6 @@ def get_tot_streak(image, col, tracking=True, half_aperture=2):
     return tot, maxcols
 
 
-# def get_snr_integrated(tot, row, new_width_restriction=True):
-#     '''
-#     not actually using the new version since updating that did not fix the efficiency problem
-#     inputs: tot as in tot, maxcols = get_tot(df,index)
-#     row, as in row = int(df.loc[index]["row_from_nn"]) + wid
-#     outputs: 
-#     snr_local
-#     snr_global
-#     noise_local
-#     noise_global
-#     local_average_outside: baseline to comparison to height
-#     height
-#     FWHM: full width half max
-#     signal_local
-#     '''
-#     newwid = 10
-#     # print("newwid ", newwid)
-
-    
-#     if new_width_restriction:
-#         tallest_index = np.argmax(tot[row - newwid : row + newwid])
-#         # print("tallest_index, ", tallest_index)
-#         tallest_index_absolute = tallest_index+(row - newwid)
-#         leftestleft, rightestleft, leftestright, rightestright = tallest_index_absolute - 100 - newwid,tallest_index_absolute - newwid, tallest_index_absolute + newwid,  tallest_index_absolute + 100 + newwid
-#         bounds = np.array([leftestleft, rightestleft, leftestright, rightestright])
-#     # print(bounds)
-#         for i, bound in enumerate(bounds):
-#             if bound < 0:
-#                 bounds[i] = 0
-#             elif bound > 3079:
-#                 bounds[i] = 3079
-#         # print("absolute ",tallest_index_absolute)
-#         # local_outside = np.concatenate((tot[ tallest_index_absolute - 100 - (newwid**2) : tallest_index_absolute - (newwid**2)], tot[tallest_index_absolute + (newwid**2) : tallest_index_absolute + 100 + (newwid**2)]))
-#         local_outside = np.concatenate((tot[ bounds[0] : bounds[1]], tot[bounds[2] : bounds[3]]))
-
-#         local_average_outside = np.average(local_outside)
-#         tot_subtracted = np.abs(tot - local_average_outside)
-#         height = tot_subtracted[tallest_index_absolute]
-#         # print("height ",height)
-#         # print("local_average_outside ", local_average_outside)
-#         half_max = height/2
-#         row = tallest_index_absolute #so the rest can stay the same
-#     else: #old version
-#         leftestleft, rightestleft, leftestright, rightestright = row - 100 - newwid,row - newwid, row + newwid,  row + 100 + newwid
-#         bounds = np.array([leftestleft, rightestleft, leftestright, rightestright])
-#     # print(bounds)
-#         for i, bound in enumerate(bounds):
-#             if bound < 0:
-#                 bounds[i] = 0
-#             elif bound > 3079:
-#                 bounds[i] = 3079
-#         local_outside = np.concatenate((tot[ bounds[0] : bounds[1]], tot[bounds[2] : bounds[3]]))
-#         local_average_outside = np.average(local_outside)
-        
-#         tot_subtracted = np.abs(tot - local_average_outside)
-#         height = np.max(tot_subtracted[row - newwid : row + newwid])
-#         half_max = height/2
-
-    
-    
-#     arr_left = tot_subtracted[ : row ][::-1]
-#     arr_right = tot_subtracted[row : ]
-    
-#     left_index = next((i for i,v in enumerate(arr_left) if v<half_max), len(arr_left)-1) + 1
-#     right_index = next((i for i,v in enumerate(arr_right) if v<half_max), len(arr_right)-1) + 1
-#     #using the last one if none found
-#     # print("indices for size of integral: ", left_index, right_index)
-#     window_minus_average = tot_subtracted[row - left_index : row + right_index]
-#     FWHM = len(window_minus_average)
-    
-#     integrated_window = np.sum(window_minus_average)
-#     signal_local = np.sqrt(np.abs(integrated_window))
-#     noise_local = np.std(local_outside)
-#     noise_global = np.std(np.concatenate((tot[ 100 : row - newwid**2], tot[row + newwid**2 : -100])))
-#     if 100 > row - newwid**2:
-#         noise_global = np.std(tot[row + newwid**2 : -100])
-#     elif row + newwid**2 > 2979:
-#         noise_global = np.std(tot[ 100 : row - newwid**2])
-#     else:
-#         noise_global = np.std(np.concatenate((tot[ 100 : row - newwid**2], tot[row + newwid**2 : -100])))
-
-#     snr_local = signal_local/noise_local
-#     snr_global = signal_local/noise_global
-#     return snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local
-
-# def add_snr_integrated(df, half_aperture=2, tracking=True, wid=10):
-#     """
-#     returns the dataframe with new columns for outputs of
-#     snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM 
-#     """
-#     column_names = ['snr_local', 'snr_global', 'noise_local', 'noise_global', 
-#                 'local_average_outside', 'height', 'FWHM', 'signal_local']
-
-#     for col in column_names:
-#         df[col] = np.zeros(len(df))
-    
-#     for index in df.index:
-#         # print(index)
-#         tot, maxcols = get_tot(df, index, half_aperture, tracking)
-#         row = int(df.loc[index]["row_from_nn"]) + wid
-#         snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local = get_snr_integrated(tot, row)
-#         df.loc[index, column_names] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local]
-#     return df
 
 
 
@@ -1903,9 +1775,11 @@ def add_sobel_ratio_fast(df, direcname='1020'):
         with fits.open(path) as hdul:
             for idx in group.index:
                 # quad = int(df.loc[idx]["quad"])
-                
-                stamp, bg = get_stamp_from_hdul(hdul, idx, direcname, df, norm=False)
-                sobel, x, y = get_sobel_ratio(stamp-bg)
+                try:
+                    stamp, bg = get_stamp_from_hdul(hdul, idx, direcname, df, norm=False)
+                    sobel, x, y = get_sobel_ratio(stamp-bg)
+                except:
+                    sobel, x, y = 0,[0],[0]
                 # print(sobel)
                 # print(np.shape(x))
                 # print(np.shape(y))
@@ -1919,7 +1793,7 @@ def add_sobel_ratio_fast(df, direcname='1020'):
     return df
 
 
-def get_stamp_from_hdul(hdul, index, direcname, df, norm=True, quad=None):
+def get_stamp_from_hdul(hdul, index, direcname, df, norm=True, quad=None, central_row="row_from_nn", size=10):
     """
     returns a 20x20 numpy array of brightnesses centered around the detection
     located at index of dataframe df
@@ -1928,8 +1802,12 @@ def get_stamp_from_hdul(hdul, index, direcname, df, norm=True, quad=None):
     norm=False has it in terms of counts
     """
     # fname = df.loc[index]["filename"] + "fits.fz"
-    row = int(df.loc[index]["row_from_nn"]) + 10
     col = int(df.loc[index]["col_from_nn"]) + 10
+    row = int(df.loc[index][central_row]) + 10
+    if central_row=="row_from_nn":
+        row = int(df.loc[index][central_row]) + 10
+    else:
+        row = int(df.loc[index][central_row]) #image not nn coordiantes
     if quad==None:
         quad = int(df.loc[index]["quad"])
     file1_array = hdul[quad].data
@@ -1937,13 +1815,13 @@ def get_stamp_from_hdul(hdul, index, direcname, df, norm=True, quad=None):
         normalized = (file1_array - np.min(file1_array)) / (
             np.max(file1_array) - np.min(file1_array)
         )  # norm
-        stamp = normalized[row - 10 : row + 10, col - 10 : col + 10]
+        stamp = normalized[row - size : row + size, col - size : col + size]
         # plt.imshow(stamp)
         # plt.colorbar()
         background = get_image_background(normalized)
         return stamp, background
         
-    stamp = file1_array[row - 10 : row + 10, col - 10 : col + 10]
+    stamp = file1_array[row - size : row + size, col - size : col + size]
     # plt.imshow(stamp)
     # plt.colorbar()
     background = get_image_background(file1_array)
@@ -2347,7 +2225,7 @@ def inspect_stamp_and_map(df, index, eff=True, neweff="new_eff_data/", posneg=No
 def normarray(arr):
     return (arr-np.min(arr))/(np.max(arr)-np.min(arr))
     
-def inspect_df_w_stamp_color(df, imgsize=10, star=False, clim=None, plot="stamp", norm=False, titlecol=[], twodec=False):
+def inspect_df_w_stamp_color(df, imgsize=10, star=False, clim=None, plot="stamp", norm=False, titlecol=[], twodec=False, plot_centers=False):
     """
     plots the stamps corresponding to detections in a dataframe
     no limit, so put in df[:100] or something probably to save time
@@ -2381,6 +2259,11 @@ def inspect_df_w_stamp_color(df, imgsize=10, star=False, clim=None, plot="stamp"
                 if star==True:
                     starpos = df.iloc[index]['closest_x']
                     ax[i, j].scatter(starpos - (col - imgsize + wid), 10)
+                if plot_centers:
+                    center = df.iloc[index]['row_from_nn'] + 10
+                    ax[i, j].scatter(10, center - (row - imgsize + wid))
+                    center2 = df.iloc[index]['central_point_brightening']
+                    ax[i, j].scatter(10, center2 - (row - imgsize + wid))
                 
                 ax[i, j].set_axis_off()
                 
