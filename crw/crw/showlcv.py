@@ -18,7 +18,7 @@ from utils import checkna, parallel_list_comprehension, diptst, lowpass_filter, 
 def plotlcv(n):
 
   X, Xpos, labels, filedetails, choosechip, runsdir, thisfilter, run, datetime, extension, verbose = loaddata()
-  assert X not None, "the data file to load was not found"
+  assert X.any(), "the data file to load was not found"
     
   NCl=  config.NCl
   ap_column = config.ap_column
@@ -40,8 +40,11 @@ def plotlcv(n):
   plt.show()
 
 
+
+
   
 if __name__ == "__main__":
+  assert int(len(sys.argv)) > 1, "need to pass the lightcurve number as argument"
   n = int(sys.argv[1])
   print(n)
   plotlcv(n)

@@ -9,7 +9,8 @@ import sys
 
 
 def getchiplcv(choosechip = None, runsdir = None,
-               thisfilter = None, run = None, datetime = None, extension = None,
+               thisfilter = None, run = None,
+               datetime = None, extension = None,
                verbose = None):
     
     if choosechip is None:
@@ -23,13 +24,21 @@ def getchiplcv(choosechip = None, runsdir = None,
     if datetime is None:
         datetime = config.datetime
     if verbose is None:
-        verbose = config.verbose
+        verbose = config.VERBOSE
+    if extension is None:
+        extension = config.extension
 
-
+    print(datetime, run, thisfilter, choosechip)
 
     filedetails, lcvarrayfile, chipfilename, featuresfile, predictionfile, rootdir = config.makenames(datetime, run, thisfilter, choosechip)
+    print(filedetails, lcvarrayfile, chipfilename, featuresfile, predictionfile, rootdir)
+
+    print("\n\n\n\n\n")
+    return
+    
 
     pattern = f"{runsdir}/*{extension}"
+    
     print(f"looking for lightcurves with pattern {pattern}")
     lcvs = glob.glob(pattern)
 
@@ -55,13 +64,18 @@ def getchiplcv(choosechip = None, runsdir = None,
     print(f"found {len(mychip)} files for chip {choosechip}")
 
     print("takes a couple of minutes")
+
     for i,lcv in tqdm(enumerate(mychip)):
         _ = pd.read_csv(lcv, index_col=None)
+        #if verbose:
+        #    print(_)
+        #sys.exit()
         #print(_.shape)
         #print(lcv.split("_")[7])
-        _["sector"]=lcv.split("_")[7]
-        _["x"]=lcv.split("_")[9]
-        _["y"]=lcv.split("_")[10].strip(".csv")
+        _["sector"]=lcv.split("_")[-4]
+        _["x"]=lcv.split("_")[-2]
+        _["y"]=lcv.split("_")[-1].strip(".csv")
+        
         #print(_.shape)
         if i == 0:
             df = _

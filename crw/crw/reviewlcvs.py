@@ -47,7 +47,7 @@ class QuickReview:
     
     def update_plot(self):
         self.ax.clear()
-        self.ax.plot(self.series[self.i])
+        self.ax.plot(self.series[self.i], alpha=0.5)
         self.ax.set_title(f'Series {self.i+1}/{len(self.series)} - Status: {self.reject_lightcurve[self.i]}')
         plt.draw()
 
@@ -71,7 +71,7 @@ class QuickReview:
     
     def update_plot(self):
         self.ax.clear()
-        self.ax.plot(self.series[self.i])
+        self.ax.plot(self.series[self.i], alpha=0.5)
         self.ax.set_title(f'Series {self.i+1}/{len(self.series)} - Status: {self.reject_lightcurve[self.i]}')
         plt.draw()
 
@@ -117,7 +117,7 @@ def reviewlcvs(choosechip=None, runsdir=None,
   reviewer = QuickReview(X)
   
   print("Final rejections:", reviewer.reject_lightcurve)
-  np.save(f"crwrejected{filedetails}.npy", np.array(reviewer.reject_lightcurve))
+  np.save(f"{config.ROOT}/crwrejected{filedetails}.npy", np.array(reviewer.reject_lightcurve))
   print(f"rejections saved in crwrejected{filedetails}.npy")
 
 if __name__ == '__main__':

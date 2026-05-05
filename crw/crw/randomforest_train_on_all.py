@@ -33,7 +33,7 @@ def rffeatures_train(choosechip="05", runsdir=None,
                      verbose=None, diagnostic_plots=None, savemodel=True):
 
   print("chip", choosechip)
-  allchips = ["04","05","06"]
+  allchips = ["05"]#["04","05","06"]
   if choosechip is None:
     choosechip = config.choosechip
   if runsdir is None:
@@ -49,7 +49,8 @@ def rffeatures_train(choosechip="05", runsdir=None,
   if diagnostic_plots is None:
     diagnostic_plots = config.DIAGNOSTICPLOTS
   
-  filedetails, lcvarrayfile, chipfilename, featuresfile, predictionfile, rootdir = config.makenames(datetime, run, thisfilter, choosechip)
+  filedetails, lcvarrayfile, chipfilename, featuresfile, \
+    predictionfile, rootdir = config.makenames(datetime, run, thisfilter, choosechip)
     
   NCl=  config.NCl
   ap_column = config.ap_column
@@ -90,7 +91,7 @@ def rffeatures_train(choosechip="05", runsdir=None,
     if filedetails.replace("_05", "_"+chips) in tags:
       print(len(tags[filedetails.replace("_05", "_"+chips)]))
       alltags.append(tags[filedetails.replace("_05", "_"+chips)])
-       
+  
 
   features = np.vstack([features[i] for i in range(len(allchips))])
   print("here", features.shape)
@@ -119,11 +120,16 @@ def rffeatures_train(choosechip="05", runsdir=None,
     plt.grid(True)
     #plt.show()
 
+  print(lcvarrayfile)
+  #f = lcvarrayfile.replace('crwdata', 'crwrejected')
+  #alltags = {lcvarrayfile.split("crwdata")[-1] : np.load(open(f, "rb"))}
   tag = np.hstack([t for t in alltags])
-  print(tag.shape)
-  #sys.exit()
+  print(tags, alltags)
+
+
   models, weights, skf = aggregate_rf_cv_weighted(features, tag)
-  y_pred_weighted = predict_weighted(models, weights, features, aggregation='soft')
+  y_pred_weighted = predict_weighted(models, weights, features,
+                                     aggregation='soft')
 
   if savemodel:
     #save the models
@@ -154,7 +160,9 @@ def rffeatures_train(choosechip="05", runsdir=None,
     y_train_fold, y_test_fold = tag[train_index], tag[test_index]
 
     # Instantiate a RandomForestClassifier for the current fold
-    model_fold = RandomForestClassifier(random_state=42, class_weight='balanced_subsample', max_depth=3)
+    model_fold = RandomForestClassifier(random_state=42,
+                                        class_weight='balanced_subsample',
+                                        max_depth=3)
     
     # Train the model
     model_fold.fit(X_train_fold, y_train_fold)

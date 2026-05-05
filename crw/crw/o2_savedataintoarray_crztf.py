@@ -27,7 +27,8 @@ def savedataintoarray(choosechip = None, runsdir = None,
     filedetails, lcvarrayfile, chipfilename, featuresfile, predictionfile, rootdir = config.makenames(datetime, run, thisfilter, choosechip)
 
 
-
+    if verbose:
+        print(chipfilename)
     #sometime we cannot read the csv file in pandas cause its too long
     #then save the file into two chunks with head and tail and read then concat
     if not chipfilename in glob.glob(chipfilename):
@@ -38,15 +39,18 @@ def savedataintoarray(choosechip = None, runsdir = None,
     else:
       df =  pd.read_csv(chipfilename, index_col=None)
     print(f"shape of data file {df.shape}")
-    
+
+
     print(f"number of lightcurves in {datetime} "
-          f"{run} {thisfilter} {choosechip}: {df.groupby(['x','y','sector']).count()}")
-      
+          f"{run} {thisfilter} {choosechip}: {df.groupby(['x','y','sector']).count().iloc[:,:1]}")
+
+    print(df.head())
     xs = df["x"].unique()
     ys = df["y"].unique()
     sec = df["sector"].unique()
     Xpossave = []
     Xsave = []#np.zeros((len(xs), len(ys), len(sec), 3080, 12))
+    print(list(enumerate(xs)))
     for i,x in tqdm(enumerate(xs)):
       for j,y in enumerate((df[df["x"]==x]["y"]).unique()):
         #print(y)

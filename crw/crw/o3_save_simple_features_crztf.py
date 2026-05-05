@@ -53,8 +53,9 @@ def extractfeatures(choosechip=None, runsdir=None,
   #'haar'  # Start with 'haar', then try 'db4'
   level = config.waveletlevel
   #5        # Choose an appropriate level (e.g., 5-8)    
-      
-  Xsave = np.load(open(lcvarrayfile, "rb"))
+  if verbose:
+    print("opening", lcvarrayfile)
+  Xsave = np.load(open(lcvarrayfile, "rb"), allow_pickle=True)
   X = Xsave[:,:,ap_column].copy()
 
   Nlc = X.shape[0]

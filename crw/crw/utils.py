@@ -39,6 +39,7 @@ def loaddata(choosechip=None, runsdir=None, thisfilter=None,
     extension = config.extension
 
     filedetails, lcvarrayfile, chipfilename, featuresfile, predictionfile, rootdir = config.makenames(datetime, run, thisfilter, choosechip)
+    print("attempting to read ", lcvarrayfile)
     try:
       Xsave = np.load(open(lcvarrayfile, "rb"))
       X = Xsave[:,:,ap_column]
@@ -47,9 +48,9 @@ def loaddata(choosechip=None, runsdir=None, thisfilter=None,
       outputs = [None]
     try:
       Xpos = np.load(open(lcvarrayfile.replace("crwdata", "crwpos"), "rb"))
-      outputs = [_]
+      outputs += [Xpos]
     except FileNotFoundError:
-      outputs = [None]
+      outputs += [None]
     try:
       labels = np.load(f"{rootdir}crwprediction{filedetails}.npy")
       outputs += [labels]

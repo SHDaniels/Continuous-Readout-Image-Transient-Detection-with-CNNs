@@ -3,6 +3,7 @@
 import numpy as np
 import pylab as plt
 import pandas as pd
+import os
 from sklearn import preprocessing
 import pywt
 import pandas as pd
@@ -13,14 +14,14 @@ import crw_config as config
 import sys
 from showlcv import plotlcv
 from utils import checkna, parallel_list_comprehension, diptst, lowpass_filter
-
+generalpath = "../outputs"
 feature_threshold = None
 feature_threshold = (("std", 1400, 0, 'gtr'), ("mean", 0, 0, "gtr")) 
 
 
 def testrejections(choosechip=None, runsdir=None,
-                                   thisfilter=None, run=None,
-                    datetime=None, extension=None, verbose=None):
+                   thisfilter=None, run=None,
+                   datetime=None, extension=None, verbose=None):
 
   if all(arg is None for arg in [choosechip, runsdir,
                                    thisfilter, run, datetime, extension]):
@@ -52,9 +53,13 @@ def testrejections(choosechip=None, runsdir=None,
   else:
       lcvsavedfile = f"crwdata_{datetime}_{run}_{thisfilter}_{choosechip}.npy"
       chipfilename = f"ztfcrm_{datetime}_{run}_{thisfilter}_{choosechip}.csv"
-      featuresfile = f"crwfeatures_{datetime}_{run}_{thisfilter}_{choosechip}.npy"      
+      featuresfile = f"crwfeatures_{datetime}_{run}_{thisfilter}_{choosechip}.npy"
 
-      
+  labelsfile = generalpath + f"crwrejected_{datetime}_{run}_{thisfilter}_{choosechip}.npy" 
+  if os.path.isfile(labelsfile):
+    print("replace hard coded tags with stored label file")
+    tags[f"_{datetime}_{run}_{thisfilter}_{choosechip}"] = np.load(open(labelsfile, "rb"))
+  
   Xsave = np.load(open(lcvarrayfile, "rb"))
   X = Xsave[:,:,ap_column].copy()
 
@@ -64,7 +69,7 @@ def testrejections(choosechip=None, runsdir=None,
   featuresfile = featuresfile.replace('crwfeatures', 'crwfeatures_wwvt')
   print(f"reading features from {featuresfile}")
   features = np.load(open(featuresfile, "rb"))
-  labelsdf = pd.read_csv("crwlabels_wwvt_.csv", index_col=0)
+  labelsdf = pd.read_csv(generalpath + "/" + "crwlabels_wwvt_.csv", index_col=0)
   labels = [labelsdf.iloc[i]["0"] for i in range(labelsdf.shape[0])]
   
   if  filedetails in tags:

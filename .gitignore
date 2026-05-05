@@ -2,6 +2,13 @@
 *.tar
 *.html
 .ipynb_checkpoints/
+*lightcurves*.csv
+crw*.csv
+crw*.npy
+
+# code ersion
+*~
+crw/crw/__pycache__/*
 
 # Large notebooks (consider using nbstripout for notebooks)
 *checkpoint.ipynb

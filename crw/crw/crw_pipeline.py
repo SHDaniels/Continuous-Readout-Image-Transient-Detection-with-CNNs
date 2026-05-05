@@ -29,8 +29,8 @@ def launchpipeline(choosechip=None, runsdir=None, thisfilter=None,
 
     if not labels is None:
         assert X.shape[0] == len(labels), "the labels and data are not the same length"
-    #extractfeatures(choosechip, runsdir, thisfilter, run, datetime,
-    #                extension, verbose)
+    extractfeatures(choosechip, runsdir, thisfilter, run, datetime,
+                    extension, verbose)
     
     
     filedetails, lcvarrayfile, chipfilename, featuresfile, predictionfile, rootdir = config.makenames(datetime, run, thisfilter, choosechip)
@@ -41,9 +41,9 @@ def launchpipeline(choosechip=None, runsdir=None, thisfilter=None,
     print(np.unique(binarylabels), np.unique(labels))
     labels = labels + binarylabels
     print(np.unique(labels))
-    #labels = np.max(np.dstack([labels, binarylabels]).squeeze(), axis=1).astype(int)
+    labels = np.max(np.dstack([labels, binarylabels]).squeeze(), axis=1).astype(int)
     features = np.load(open(featuresfile.replace("crwfeatures","crwfeatures_wwvt"), "rb"))
-    #plotallfeatures(features, labels=labels, filedetails=None)
+    plotallfeatures(features, labels=labels, filedetails=None)
     plotalllcs(X, labels, filedetails=filedetails)
     hpfX = savehpflcs(X=X, choosechip=choosechip, order=3, window=101, diagnostic_plots=True)    
     

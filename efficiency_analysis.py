@@ -197,12 +197,11 @@ def add_sobel_ratio(fpath, df, extension):
     returns the dataframe with a new column of sobel ratios
     see get_sobel_ratio(stamp)
     """
-    sobels = []
-    for index in df.index:
+    
+    for i,index in df.index:
         stamp, bg = get_stamp_from_df(index, fpath, df, extension, norm=False)
         sobelr = get_sobel_ratio(stamp)
-        sobels.append(sobelr)
-    df["sobel_ratio"] = sobels
+        df.iloc[i].loc[:,"sobel_ratio"] = sobelr
     return df
 
 

@@ -5,11 +5,13 @@ ROOT = "../outputs/"
 
 thisfilter = "zg"
 run = "000686"
-datetime = "20221020148032"
-choosechip = "05"
+datetime = "20221020148032" #"20221020148032"
+choosechip = "03" #"05"
+
 
 ap_column = 5
 
+#runsdir = "../selection_same_files_new_tracking"
 runsdir = "../selection"
 extension = ".csv"
 
@@ -60,6 +62,8 @@ if 1:
       tags[f"_{datetime}_{run}_{thisfilter}_{thischip}"][i] = 1
     
     thischip = "05"
+    tags[f"_{datetime}_{run}_{thisfilter}_{thischip}"]  = np.load(open("crwrejected_20221020148032_000686_zg_05.npy", "rb"))
+    """
     tags[f"_{datetime}_{run}_{thisfilter}_{thischip}"] = np.zeros(810)
     tags[f"_{datetime}_{run}_{thisfilter}_{thischip}"][211:214] = 1
     tags[f"_{datetime}_{run}_{thisfilter}_{thischip}"][217] = 1
@@ -80,6 +84,7 @@ if 1:
     tags[f"_{datetime}_{run}_{thisfilter}_{thischip}"][229] = 1
     #tags[f"_{datetime}_{run}_{thisfilter}_{thischip}"][235] = tags[f"_{datetime}_{run}_{thisfilter}_{thischip}"][237] = 1
     tags[f"_{datetime}_{run}_{thisfilter}_{thischip}"][264] = tags[f"_{datetime}_{run}_{thisfilter}_{thischip}"][239] = 1
+    """
 
     thischip = "04"
     tags[f"_{datetime}_{run}_{thisfilter}_{thischip}"] = np.zeros(1980)
