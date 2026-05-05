@@ -12,3 +12,6 @@ crw/crw/__pycache__/*
 
 # Large notebooks (consider using nbstripout for notebooks)
 *checkpoint.ipynb
+__pycache__/
+*.pyc
+*.pyo
