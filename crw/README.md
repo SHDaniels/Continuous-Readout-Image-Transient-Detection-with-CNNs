@@ -1,0 +1,22 @@
+to run the pipeline: 
+```
+python crw_pipeline.py -c 06
+```
+
+where 06 is chip 06
+
+individual pipeline elements include:
+
+`o1_extractfromrun.py`				
+		
+`o2_savedataintoarray_crztf.py`			
+
+`o3_save_simple_features_crztf.py`
+
+`o4_randomforest_simple_features_crztf.py`
+
+which can be run in order the same way you run crw_pipeline
+
+also useful 
+`python showall -c 06`
+`python randomforest_train_on_all.py` to train on data from multiple chip a RF to reject bad lightcurves
