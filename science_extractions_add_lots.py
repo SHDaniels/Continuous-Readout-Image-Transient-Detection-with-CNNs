@@ -28,7 +28,11 @@ for file in files:
     if os.path.exists(folder_path+file+"_diffcut5_size1_dedup_snr"): 
             continue  
     print(file)
-    df = pd.read_csv(os.path.join(folder_path, file))
+    try:
+        df = pd.read_csv(os.path.join(folder_path, file))
+    except pandas.errors.EmptyDataError:
+        print("empty data error from "+file)
+        continue
     if len(df) == 0:
         print(f"Skipping {file}: empty DataFrame")
         continue
@@ -50,11 +54,13 @@ for file in files:
         print(f"Skipping {file}: no rows after deduplication")
         continue
     df_dedup.to_csv(folder_path+file+"_diffcut5_size1_dedup")
-    
-    df_snr = rff.add_snr_both(df_dedup)
-    if len(df_snr) == 0:
-        print(f"Skipping {file}: no rows after SNR calculation")
-        continue
-    df_snr.to_csv(folder_path+file+"_diffcut5_size1_dedup_snr")
+    try:
+        df_snr = rff.add_snr_both(df_dedup)
+        if len(df_snr) == 0:
+            print(f"Skipping {file}: no rows after SNR calculation")
+            continue
+        df_snr.to_csv(folder_path+file+"_diffcut5_size1_dedup_snr")
+    except:
+        print("no light curve file or other snr error? "+file)
         
     

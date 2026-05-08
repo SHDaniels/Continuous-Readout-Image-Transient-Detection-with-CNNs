@@ -68,6 +68,11 @@ data_direc = "/lustre/lrspec/ZTF_data/2022/1020/"
     
 path_save_long_term = "/lustre/lrspec/ZTF_data/science_extractions/1020april26/average/" #cause i will delete the straight up output of this one
 
+training_path = "/lustre/lrspec/ZTF_data/science_extractions/actually_training/predsarrays_"
+training_save = training_path + name + suffix + "/"
+if not os.path.exists(training_save):
+    os.mkdir(training_save)
+
 
 # for i, suffix in enumerate(to_append):
 if 1==1: #yknow indents
@@ -107,8 +112,12 @@ if 1==1: #yknow indents
             print("skipping - exists in average", filename_start)
             continue        
         if os.path.isfile("/lustre/lrspec/ZTF_data/training_aug24/implant_train/"+image_filename): #checking it isn't in training data:
-            print("skipping - in training data ", filename_start)
-            continue
+            # print("skipping - in training data ", filename_start)
+            # continue
+            print("in training data ", filename_start)
+            fpath_extractions_save = training_save
+        else:
+            fpath_extractions_save = save_direc
         
 
         print(image_filename_full)
