@@ -30,7 +30,7 @@ for file in files:
     print(file)
     try:
         df = pd.read_csv(os.path.join(folder_path, file))
-    except pandas.errors.EmptyDataError:
+    except pd.errors.EmptyDataError:
         print("empty data error from "+file)
         continue
     if len(df) == 0:

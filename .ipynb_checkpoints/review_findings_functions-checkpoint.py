@@ -54,9 +54,7 @@ def inspect_df(df, direcname, fpath=None, extension = "fits.fz", normalize=False
                 
                 if fpath==None:
                     fpath = (
-                        "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
-                        + direcname
-                        + "_minus_extras/"
+                        "/lustre/lrspec/ZTF_data/2022/1020/"
                     )
                 path = fpath + fname
                 if extension == "fits.fz":
@@ -368,7 +366,7 @@ def get_tot(
     index,
     half_aperture=2,
     tracking=True,
-    fpath="/lustre/lrspec/ZTF_data/science_extractions/to_extract/1020_minus_extras/",
+    fpath="/lustre/lrspec/ZTF_data/2022/1020/",
 ):
     """
     returns tot, maxcols: an array that is the flux of the star streak
@@ -1026,7 +1024,7 @@ def plot_lc_from_csv_with_transient_df(lc_filename, df, rowindex, hap=2):
     
 
 
-def plot_lc_from_csv_with_transient_df_plotly(lc_filename, df=None, rowindex=None, hap=2):
+def plot_lc_from_csv_with_transient_df_plotly(lc_filename, df=None, rowindex=None, hap=2, old_lines=True):
     '''
     Creates an interactive Plotly version of my light curve plot with transient candidates
     
@@ -1124,26 +1122,27 @@ def plot_lc_from_csv_with_transient_df_plotly(lc_filename, df=None, rowindex=Non
     # Replace these with your actual data loading functions
     try:
         # These would be your actual function calls:
-        transients_df = get_initial_df_for_lc(lc_filename, tolerance=10)
-        df_nocr = transients_df[transients_df["type"] != "cr"]
-        df_reduced_edges = reduce_edges(df_nocr, 15)
-        df_reduced_edges_size4 = reduce_size(df_reduced_edges, 4)
-        df_second = get_second_df_for_lc(lc_filename, tolerance=10)
-        df_third = get_third_df_for_lc(lc_filename, tolerance=10)
-        df_last = get_last_df_for_lc(lc_filename)
-        
-        df_withsim = get_withsim_df_for_lc(lc_filename)
+        if old_lines==True:
+            transients_df = get_initial_df_for_lc(lc_filename, tolerance=10)
+            df_nocr = transients_df[transients_df["type"] != "cr"]
+            df_reduced_edges = reduce_edges(df_nocr, 15)
+            df_reduced_edges_size4 = reduce_size(df_reduced_edges, 4)
+            df_second = get_second_df_for_lc(lc_filename, tolerance=10)
+            df_third = get_third_df_for_lc(lc_filename, tolerance=10)
+            df_last = get_last_df_for_lc(lc_filename)
+            
+            df_withsim = get_withsim_df_for_lc(lc_filename)
         
 
         
-        # Add the transient markers (you'll replace this with your actual data)
-        add_transient_lines(transients_df, colors['cnn_cosmic_ray'], "CNN marked as cosmic ray", fig)
-        add_transient_lines(df_nocr, colors['edges'], "eliminated: too close to edges", fig)
-        add_transient_lines(df_reduced_edges, colors['size'], "eliminated: total size < 4 pixels", fig)
-        
-        add_transient_lines(df_second, colors['sobel'], "eliminated: sobel ratio < 5 (cosmic ray)", fig)
-        add_transient_lines(df_third, colors['snr'], "eliminated: local snr<1", fig)
-        add_transient_lines(df_withsim, colors['brightness'], "eliminated: has simultaneous events", fig)
+            # Add the transient markers (you'll replace this with your actual data)
+            add_transient_lines(transients_df, colors['cnn_cosmic_ray'], "CNN marked as cosmic ray", fig)
+            add_transient_lines(df_nocr, colors['edges'], "eliminated: too close to edges", fig)
+            add_transient_lines(df_reduced_edges, colors['size'], "eliminated: total size < 4 pixels", fig)
+            
+            add_transient_lines(df_second, colors['sobel'], "eliminated: sobel ratio < 5 (cosmic ray)", fig)
+            add_transient_lines(df_third, colors['snr'], "eliminated: local snr<1", fig)
+            add_transient_lines(df_withsim, colors['brightness'], "eliminated: has simultaneous events", fig)
 
     except Exception as e:
         print(f"Note: Could not load transient data - {e}")
@@ -1161,7 +1160,21 @@ def plot_lc_from_csv_with_transient_df_plotly(lc_filename, df=None, rowindex=Non
     ))
     
     #maybe this will show up on top
-    add_transient_lines(df_last, colors['remains'], "Remaining transient candidate", fig, highlight=True)
+    if old_lines==True:
+        add_transient_lines(df_last, colors['remains'], "Remaining transient candidate", fig, highlight=True)
+    else:
+        if int(df_row['row_from_nn']) + 10 - 9 >= 0 and int(df_row['row_from_nn']) + 10 + 9 < len(tot):
+                    highlight_x = time_points[int(df_row['row_from_nn']) + 10 - 9 : int(df_row['row_from_nn']) + 10 + 9]
+                    highlight_y = tot[int(df_row['row_from_nn']) + 10 - 9 : int(df_row['row_from_nn']) + 10 + 9]
+                    
+                    fig.add_trace(go.Scatter(
+                        x=highlight_x,
+                        y=highlight_y,
+                        mode='markers',
+                        marker=dict(size=8, color='white', line=dict(color='black', width=1)),
+                        showlegend=False,
+                        hovertemplate='<b>Transient Candidate</b><br><b>Time:</b> %{x}<br><b>Flux:</b> %{y:.2f}<extra></extra>'
+                    ))
 
     # Update layout to match your original styling
     fig.update_layout(
@@ -1234,9 +1247,7 @@ def plot_transient_streak_plotly(
     
     # Load the image (same as original)
     fpath = (
-        "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
-        + direcname
-        + "_minus_extras/"
+        "/lustre/lrspec/ZTF_data/2022/1020/"
     )
     path = fpath + fname
     
@@ -1347,9 +1358,7 @@ def plot_whole_streak_plotly(
     
     # Load the image (same as original)
     fpath = (
-        "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
-        + direcname
-        + "_minus_extras/"
+        "/lustre/lrspec/ZTF_data/2022/1020/"
     )
     path = fpath + fname
     
@@ -1512,9 +1521,7 @@ def plot_whole_image_plotly(
     
     # Load the image (same as original)
     fpath = (
-        "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
-        + direcname
-        + "_minus_extras/"
+        "/lustre/lrspec/ZTF_data/2022/1020/"
     )
     path = fpath + fname
     
@@ -1756,14 +1763,14 @@ def get_tot_npy(
 
 
 
-def add_sobel_ratio_fast(df, direcname='1020'):
+def add_sobel_ratio_fast(df, central_row='central_point_brightening', direcname='1020', size=5):
     """
     returns the dataframe with a new column of sobel ratios
     see get_sobel_ratio(stamp)
     """
     sobels = {}
-    sobels_x = {}
-    sobels_y = {}
+    # sobels_x = {}
+    # sobels_y = {}
     # i=0
     for filename, group in df.groupby('filename'):     
         fpath = (
@@ -1775,22 +1782,21 @@ def add_sobel_ratio_fast(df, direcname='1020'):
         with fits.open(path) as hdul:
             for idx in group.index:
                 # quad = int(df.loc[idx]["quad"])
-                try:
-                    stamp, bg = get_stamp_from_hdul(hdul, idx, direcname, df, norm=False)
-                    sobel, x, y = get_sobel_ratio(stamp-bg)
-                except:
-                    sobel, x, y = 0,[0],[0]
+                
+                stamp, bg = get_stamp_from_hdul(hdul, idx, direcname, df, norm=False, central_row=central_row, size=size)
+                sobel, x, y = get_sobel_ratio(stamp-bg)
                 # print(sobel)
                 # print(np.shape(x))
                 # print(np.shape(y))
                 sobels[idx] = sobel
-                sobels_x[idx] = x
-                sobels_y[idx] = y
+                # sobels_x[idx] = x
+                # sobels_y[idx] = y
                 # i+=1
-    df["sobel_ratio"] = df.index.map(sobels)
-    df["sobels_x"] = df.index.map(sobels_x)
-    df["sobels_y"] = df.index.map(sobels_y)
+    df["sobel_ratio"+central_row+str(size)] = df.index.map(sobels)
+    # df["sobels_x"+central_row+str(size)] = df.index.map(sobels_x)
+    # df["sobels_y"+central_row+str(size)] = df.index.map(sobels_y)
     return df
+
 
 
 def get_stamp_from_hdul(hdul, index, direcname, df, norm=True, quad=None, central_row="row_from_nn", size=10):
@@ -1883,9 +1889,7 @@ def add_stamps(df, direcname='1020'):
     # i=0
     for filename, group in df.groupby('filename'):     
         fpath = (
-            "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
-            + direcname
-            + "_minus_extras/"
+            "/lustre/lrspec/ZTF_data/2022/1020/"
         )
         path = fpath + filename+'fits.fz'
         # print(path)
@@ -1917,9 +1921,7 @@ def add_stamps2(df, direcname='1020'):
     df["norm_stamp"] = None
     
     fpath = (
-        "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
-        + direcname
-        + "_minus_extras/"
+        "/lustre/lrspec/ZTF_data/2022/1020/"
     )
     
     for filename, group in df.groupby('filename', sort=False):  # sort=False saves time
@@ -1941,9 +1943,7 @@ def add_stamps3(df, direcname='1020'):
     df["norm_stamp"] = None
     
     fpath = (
-        "/lustre/lrspec/ZTF_data/science_extractions/to_extract/"
-        + direcname
-        + "_minus_extras/"
+        "/lustre/lrspec/ZTF_data/2022/1020/"
     )
     
     for filename, group in df.groupby('filename', sort=False):
