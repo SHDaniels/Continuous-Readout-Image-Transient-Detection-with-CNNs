@@ -2503,14 +2503,15 @@ def match_stars_eff(df):
     Diffs = np.zeros(len(df))
     brightness_ranking = np.zeros(len(df))
     xy_path = "/lustre/lrspec/ZTF_data/corrected_coordinates/xy_arrays/"
-    quad = str(1)
     i=0
     for index, rrow in df.iterrows():
-
-        xy_file = xy_path+df.loc[index]['filename'][:35]+quad+".fits"
+        quad = str(rrow['quad_from_implant'])
+        # print(df.loc[index,'filename'][:35])
+        xy_file = xy_path+rrow['filename'][:35]+quad+".fits"
+        # print(xy_file)
         with fits.open(xy_file) as hdul_xy:
-            col = rrow["col_from_nn"]
-            target_x = col+10
+            col = rrow["col_from_implant"]
+            target_x = col
             # print(xy_file)
             data = hdul_xy[1].data  
             stored_x = data["X"][:25]  # Column "X"
@@ -3500,3 +3501,23 @@ def add_snr_both(olddf):
                     df.loc[index, column_names_dimming] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute]
     return df            
 
+def plot_small_multiples_lcs(df, concat, titlecol='index'):
+    wid = 10
+    figcols = 3
+    figrows = 1 + len(df) // figcols
+    fig, ax = plt.subplots(figrows, figcols, figsize=(figcols * 5, figrows*1.2))
+    for i in range(figrows):
+        for j in range(figcols):
+            index = figcols * i + j
+            if index < len(df):
+                tot, maxols = get_tot_csv(concat, df.iloc[index]['concat_index_copy'])
+                if titlecol=='index':
+                    ax[i,j].set_title(str(index))
+                else:
+                    ax[i,j].set_title(str(df.iloc[index][titlecol]))
+                ax[i,j].plot(tot, '.', ms=2)
+                ax[i,j].set_xticks([])
+                
+                
+                
+ 
