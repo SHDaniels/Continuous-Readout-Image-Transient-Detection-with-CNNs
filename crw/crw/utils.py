@@ -1,16 +1,122 @@
 import numpy as np
 from tqdm import tqdm
-import pywt
+import crw_config as config
+import sys
+import os
+import subprocess
+import gc
+import resource 
+
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.model_selection import StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-import pylab as plt
+
+import numpy as np
+import pandas as pd
+import glob
+from tqdm import tqdm
+
+import matplotlib
+matplotlib.use('WebAgg')
+matplotlib.rcParams['webagg.open_in_browser'] = False
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Button
 import plotly.express as px
-import ipywidgets as widgets
-import crw_config as config
+
+import pywt
 from scipy.signal import savgol_filter
- 
+
+import crw_config as config
+
+
+def checklength(filename):
+    runsdir = config.runsdir
+    f = open(filename, "r")
+    total_lines = sum(1 for line in f) - 1
+    f.close()
+    del f
+    gc.collect()
+    #ztfcrm_20221020157697_000640_zi_14
+    _, datetime, run, thisfilter, choosechip = filename.split("/")[-1].replace(".csv","").split("_")
+    
+    pattern = f"{runsdir}/lightcurve_ztf_{datetime}_{run}_{thisfilter}_c{choosechip}*"
+    print("pattern ", pattern)
+
+    files = glob.glob(pattern)
+    batch_size = 100
+    original_lines = 0
+
+    for i in tqdm(range(0, len(files), batch_size)):
+        batch = files[i:i+batch_size]
+        
+        # Use xargs to run wc once with many files
+        cmd = ['xargs', '-0', 'wc', '-l']
+        input_data = '\0'.join(batch).encode()
+        #print(input_data)
+        result = subprocess.run(cmd, input=input_data, 
+                               stdout=subprocess.PIPE, 
+                               stderr=subprocess.PIPE)
+        #print(result)
+        output = result.stdout.decode().strip().split('\n')
+        for line in output:
+            if 'total' not in line and line.strip():
+                original_lines += int(line.split()[0]) - 1
+        #print(original_lines)
+        #exit()
+        gc.collect()        
+    if total_lines != original_lines:
+        print(filename, total_lines, original_lines, "something is wrong!")
+    print(resource.getrlimit(resource.RLIMIT_NOFILE))
+
+
+def checklcvs(df_chips):
+    df_chips_groups = df_chips.groupby(["date", "run", "filter", "chip"]).count()
+    print(df_chips_groups.head())
+    nmissing = 0
+    for ind in df_chips_groups.index:
+        datetime, run, thisfilter, choosechip = ind
+        choosechip = choosechip.replace('c','')
+
+        filedetails, lcvarrayfile, chipfilename, \
+            featuresfile, predictionfile, rootdir = config.makenames(datetime, run, 
+                                                                     thisfilter, choosechip)
+    
+        #print("\t", chipfilename)
+
+        if os.path.isfile(chipfilename):
+            print("\t✔", ind, "nlcvs:", df_chips_groups.loc[ind].values[0])
+        else:
+            print("->", ind, "nlcvs:", df_chips_groups.loc[ind].values[0])
+            nmissing += 1
+    print(f"sill missing {nmissing} files")
+    return 
+
+def getalllcvs(runsdir, extension, verbose=False):
+
+    pattern = f"{runsdir}/*{extension}"
+
+    print(f"looking for lightcurves with pattern {pattern}")
+    lcvs = glob.glob(pattern)
+
+    print(f"found {len(lcvs)} lightcurve files")
+
+    dates = [l.split("/")[-1].split('_')[2] for l in lcvs]
+    runs = [l.split("/")[-1].split('_')[3] for l in lcvs]
+    filters = [l.split("/")[-1].split('_')[4] for l in lcvs]
+    chip = [l.split("/")[-1].split('_')[5] for l in lcvs]
+
+    df_chips = pd.DataFrame(columns=["name", "date", "run", "filter", "chip"],
+                            data = np.array([lcvs, dates, runs, filters, chip]).T)
+
+    #print(df_chips)
+    print("LIGHTCURVES PER CHIP")
+    df_chips_groups = df_chips.groupby(["date", "run", "filter", "chip"]).count().rename({"name":"nlcvs"}, axis=1)
+    if verbose:
+        for i in df_chips_groups.index:
+            print(df_chips_groups.loc[i])
+    df_chips_groups.reset_index().to_csv(config.ROOT + "/allparams.csv")                                   
+    return df_chips
 
 
 def loaddata(choosechip=None, runsdir=None, thisfilter=None,
@@ -41,18 +147,19 @@ def loaddata(choosechip=None, runsdir=None, thisfilter=None,
     filedetails, lcvarrayfile, chipfilename, featuresfile, predictionfile, rootdir = config.makenames(datetime, run, thisfilter, choosechip)
     print("attempting to read ", lcvarrayfile)
     try:
-      Xsave = np.load(open(lcvarrayfile, "rb"))
+      Xsave = np.load(lcvarrayfile, allow_pickle=True)
+      print(Xsave.shape)
       X = Xsave[:,:,ap_column]
       outputs = [X]
     except FileNotFoundError:
       outputs = [None]
     try:
-      Xpos = np.load(open(lcvarrayfile.replace("crwdata", "crwpos"), "rb"))
+      Xpos = np.load(lcvarrayfile.replace("crwdata", "crwpos"), allow_pickle=True)
       outputs += [Xpos]
     except FileNotFoundError:
       outputs += [None]
     try:
-      labels = np.load(f"{rootdir}crwprediction{filedetails}.npy")
+      labels = np.load(f"{rootdir}crwprediction{filedetails}.npy", allow_pickle=True)
       outputs += [labels]
     except FileNotFoundError:
       outputs += [None]
@@ -132,7 +239,8 @@ def parallel_list_comprehension(func, iterable, n_jobs=None):
     import multiprocessing as mp
     
     if n_jobs is None:
-        n_jobs = mp.cpu_count()
+        n_jobs = int(os.environ.get('SLURM_CPUS_PER_TASK', mp.cpu_count()))
+        #n_jobs = mp.cpu_count()
     print(f"launching {n_jobs} jobs")
     
     with mp.Pool(n_jobs) as pool:
@@ -297,7 +405,7 @@ def lowpass_filter(data, wavelet='db4', level=5):
       filtered_data[i, :] = pywt.waverec(coeff, wavelet)
     return filtered_data + means[:,np.newaxis]
         
-def highpass_filter(data, window=101, order=3):
+def highopass_filter(data, window=101, order=3):
     """Apply Savitzky-Golay filter for smoothing or derivative"""
 
     return data - savgol_filter(data, window, order, axis=1)
