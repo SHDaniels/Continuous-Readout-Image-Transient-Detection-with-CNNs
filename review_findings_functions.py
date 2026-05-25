@@ -3520,4 +3520,9 @@ def plot_small_multiples_lcs(df, concat, titlecol='index'):
                 
                 
                 
- 
+def add_band(df):
+    band = []
+    for i, row in df.iterrows():
+        band.append(row['filename'][27])
+    df["Band"] = band
+    return df
