@@ -50,14 +50,20 @@ def savedataintoarray(choosechip = None, runsdir = None,
     sec = df["sector"].unique()
     Xpossave = []
     Xsave = []#np.zeros((len(xs), len(ys), len(sec), 3080, 12))
-    print(list(enumerate(xs)))
+    #print(list(enumerate(xs)))
+    s = df[(df["x"]==xs[0]) & (df["y"]==ys[0])]["sector"].unique()[0]
+    shapehere = df[(df["x"]==xs[0]) & (df["y"]==ys[0]) & (df["sector"]==s)].shape
     for i,x in tqdm(enumerate(xs)):
       for j,y in enumerate((df[df["x"]==x]["y"]).unique()):
         #print(y)
-        for k,s in enumerate(df[(df["x"]==x) & (df["x"]==x)]["sector"].unique()):
+        for k,s in enumerate(df[(df["x"]==x) & (df["y"]==y)]["sector"].unique()):
           _ = df[(df["x"]==x) & (df["y"]==y) & (df["sector"]==s)]
-          Xpossave.append(np.array([x,y]))
-          Xsave.append(_)
+          if _.shape == shapehere:
+              #print(x,y, _.shape)
+              Xpossave.append(np.array([x,y]))
+              Xsave.append(_)
+          else: 
+              print(f"warning: shape is wrong: expected {shapehere} got {_.shape}")
 
     Xsave = np.array(Xsave)
     np.save(lcvarrayfile, Xsave)

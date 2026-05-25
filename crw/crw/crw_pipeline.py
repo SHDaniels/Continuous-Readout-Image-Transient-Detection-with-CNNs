@@ -15,16 +15,19 @@ def launchpipeline(choosechip=None, runsdir=None, thisfilter=None,
     X, Xpos, labels, filedetails, choosechip, runsdir, thisfilter, run, \
         datetime, extension, verbose  = loaddata(choosechip, runsdir, thisfilter, run,
                                                  datetime, silent)
-
     if X is None or Xpos is None:
+        print("\n\n##################################")
+        print("Step 1: save into a single csv")
         getchiplcv(choosechip, runsdir, thisfilter, run, datetime, extension, verbose)
+        print("\n\n##################################")
+        print("Step 2: save into a array")
         savedataintoarray(choosechip, runsdir, thisfilter, run, datetime, extension, verbose)
     
         X, Xpos, labels, filedetails, choosechip, runsdir, thisfilter, run, \
         datetime, extension, verbose  = loaddata(choosechip, runsdir, thisfilter, run,
                                                  datetime, silent)
-
-
+    print("\n\n##################################")
+    print("Step 3: extract features")
     print(f"there are {X.shape[0]} lightcurves to analyze on chip {choosechip}")
 
     if not labels is None:
@@ -32,7 +35,11 @@ def launchpipeline(choosechip=None, runsdir=None, thisfilter=None,
     extractfeatures(choosechip, runsdir, thisfilter, run, datetime,
                     extension, verbose)
     
-    
+    print("done feature extraction")
+    return
+
+    print("\n\n##################################")    
+    print("Step 4: label lightcurves")
     filedetails, lcvarrayfile, chipfilename, featuresfile, predictionfile, rootdir = config.makenames(datetime, run, thisfilter, choosechip)
     labels = rffeatures_predict(choosechip, runsdir, thisfilter, run, datetime,
                        extension, verbose)

@@ -1,18 +1,22 @@
 import numpy as np
 import os
+#i20221020138241, 000686, zi, c01)
+#20221020141806, 000686, zi, c01
+#ztfcrm_20221020138241_000686_zi_01.csv
 
-ROOT = "../outputs/"
-
-thisfilter = "zg"
+ROOT = "/lustre/lrspec/ZTF_data/outputs/1020/"
+LCVSPATH = "/lustre/lrspec/ZTF_data/lightcurves/1020/"
+thisfilter = "zi"
 run = "000686"
-datetime = "20221020148032" #"20221020148032"
-choosechip = "03" #"05"
+datetime = "20221020138241" #"20221020141806" #"20221020138241" #"20221020148032" #"20221020148032"                                                                
+choosechip = "02" #"05"      
 
 
-ap_column = 5
+ap_column = 2 + 2
 
 #runsdir = "../selection_same_files_new_tracking"
-runsdir = "../selection"
+#runsdir = "../selection"
+runsdir = "/lustre/lrspec/ZTF_data/lightcurves/1020"
 extension = ".csv"
 
 NCl = 2
@@ -28,9 +32,13 @@ BUILDINGTRAININGSET = False
 
 def makenames(datetime, run, thisfilter, choosechip):
   root = ROOT
-  os.system("mkdir " + root)
-  os.system("mkdir " + root + "/plots")
-  os.system("mkdir ../models")
+  if not os.path.isdir(root):
+    os.system("mkdir " + root)
+  if not os.path.isdir(root + "/plots"):
+    os.system("mkdir " + root + "/plots")
+  if not os.path.isdir("../models"):
+    os.system("mkdir ../models")
+
   filedetails = f"_{datetime}_{run}_{thisfilter}_{choosechip}"
   lcvarrayfile = f"{root}crwdata{filedetails}.npy"
   chipfilename = f"{root}ztfcrm{filedetails}.csv"

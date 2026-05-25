@@ -28,7 +28,6 @@ import joblib
 
 NCl = 2
 
-
 def rffeatures_predict(choosechip=None, runsdir=None,
                        thisfilter=None, run=None,
                        datetime=None, extension=None, verbose=None):
@@ -99,30 +98,27 @@ def rffeatures_predict(choosechip=None, runsdir=None,
 
       
 
-def rffeatures_train(choosechip=None, runsdir=None,
-                     thisfilter=None, run=None,
-                     datetime=None, extension=None,
+def rffeatures_train(choosechips=None, runsdir=None,
+                     thisfilters=None, runs=None,
+                     datetimes=None, extension=None,
                      verbose=None, diagnostic_plots=None, savemodel=False):
 
-  print("chip", choosechip)
-  
-  if choosechip is None:
-    choosechip = config.choosechip
+  if choosechips is None:
+    choosechips = [config.choosechip]
+    print(choosechips)
   if runsdir is None:
     runsdir = config.runsdir
-  if thisfilter is None:
-    thisfilter = config.thisfilter
-  if run is None:
-    run = config.run
-  if datetime is None:
-    datetime = config.datetime
+  if thisfilters is None:
+    thisfilters = [config.thisfilter]
+  if runs is None:
+    runs = [config.run]
+  if datetimes is None:
+    datetimes = [config.datetime]
   if verbose is None:
     verbose = config.VERBOSE
   if diagnostic_plots is None:
     diagnostic_plots = config.DIAGNOSTICPLOTS
   
-  filedetails, lcvarrayfile, chipfilename, featuresfile, predictionfile, rootdir = config.makenames(datetime, run, thisfilter, choosechip)
-    
   NCl=  config.NCl
   ap_column = config.ap_column
   
@@ -135,37 +131,62 @@ def rffeatures_train(choosechip=None, runsdir=None,
   #5        # Choose an appropriate level (e.g., 5-8)    
 
   rfthreshold = config.rfthreshold
+  Nlc = 0
+  features = []
+  labels = []
+  tags = []
 
-  
-  labelsfile  = f"{rootdir}crwlabels_.csv"
-  if wavelets:
-    featuresfile = featuresfile.replace('crwfeatures', 'crwfeatures_wwvt')
-    labelsfile  = f"{rootdir}crwlabels_wwvt_.csv"
+  for choosechip, run, thisfilter, datetime in zip (choosechips, runs, thisfilters, datetimes):
+    print(choosechip, run, thisfilter, datetime)
 
-  print(f"reading features from {featuresfile}")
-  features = np.load(open(featuresfile, "rb"))
-  labelsdf = pd.read_csv(labelsfile, index_col=0)
-  labels = np.array([labelsdf.iloc[i]["0"] for i in range(labelsdf.shape[0])])
-  label2num_dict = {l[0]:i for i,l in enumerate(labelsdf.values) if l[0] not in ["Hartigan's"] }
-  label2num_dict["H"] = 2
+    filedetails, lcvarrayfile, chipfilename, featuresfile, predictionfile, rootdir = config.makenames(datetime, run, thisfilter, choosechip)
+    print(filedetails)
+    labelsfile  = f"{rootdir}crwlabels_.csv"
+    if wavelets:
+      featuresfile = featuresfile.replace('crwfeatures', 'crwfeatures_wwvt')
+      labelsfile  = f"{rootdir}crwlabels_wwvt_.csv"
 
-  Nlc = len(features)
-  Nfeatures = len(labels)
+    print(f"reading features from {featuresfile}")
+    features_here = np.load(open(featuresfile, "rb"))
+    print(f"reading labels from {labelsfile}")
+    labelsdf_here = pd.read_csv(labelsfile, index_col=0)
+    labels = np.array([labelsdf_here.iloc[i]["0"] for i in range(labelsdf_here.shape[0])])
+    label2num_dict_here = {l[0]:i for i,l in enumerate(labelsdf_here.values) 
+                           if l[0] not in ["Hartigan's"]}
+    label2num_dict_here["H"] = 2
 
-  message = f"this code expects {Nfeatures} with wavelets set to {wavelets}"
-  assert features.shape[1]== Nfeatures, message
+    Nlc += len(features_here)
+    Nfeatures = len(labels)
 
-  tags = config.tags
+    message = f"this code expects {Nfeatures} with wavelets set to {wavelets}," 
+    message += "got {np.array(features).shape[1]}"
 
-  if filedetails in tags:
-    tag = tags[filedetails]
-  else:
-    tag = np.zeros(Nlc)    
+    assert features_here.shape[1] == Nfeatures, message
 
+    features.append(features_here)
+    
+    ####################################need to change
+    
+    tags.append(np.random.choice([0, 1], size=len(features_here)))
+    
+    #config.tags
 
-  print(labels)
+    #if filedetails in tags:
+    #  tag = tags[filedetails]
+    #else:
+    #  tag = np.zeros(Nlc)    
+
+  ############################################
+
+  tags = np.hstack(tags)
+
+  features = np.vstack(features)
+  #labels = np.vstack(labels)
+  print(features.shape, labels.shape, tags.shape)
+
   features_scaled = preprocessing.scale(features, axis=0)
   features_scaled.std(axis=0)
+
   if diagnostic_plots:
     fig, axs = plt.subplots(2,1,figsize=(7, 7))
     axs = axs.ravel()
@@ -186,7 +207,7 @@ def rffeatures_train(choosechip=None, runsdir=None,
     plt.grid(True)
     #plt.show()
 
-  models, weights, skf = aggregate_rf_cv_weighted(features, tag)
+  models, weights, skf = aggregate_rf_cv_weighted(features, tags)
   y_pred_weighted = predict_weighted(models, weights, features, aggregation='soft')
 
   if savemodel:
@@ -210,12 +231,12 @@ def rffeatures_train(choosechip=None, runsdir=None,
   fold_importances = []
 
   # Iterate through the folds generated by StratifiedKFold
-  for fold, (train_index, test_index) in enumerate(skf.split(features, tag)):
+  for fold, (train_index, test_index) in enumerate(skf.split(features, tags)):
     print(f"\n--- Fold {fold + 1}/{skf.n_splits} ---")
 
     # Split data into training and testing sets for the current fold
     X_train_fold, X_test_fold = features[train_index], features[test_index]
-    y_train_fold, y_test_fold = tag[train_index], tag[test_index]
+    y_train_fold, y_test_fold = tags[train_index], tags[test_index]
 
     # Instantiate a RandomForestClassifier for the current fold
     model_fold = RandomForestClassifier(random_state=42, class_weight='balanced_subsample', max_depth=3)
@@ -257,6 +278,8 @@ def rffeatures_train(choosechip=None, runsdir=None,
   # Sort features by importance
   indices = np.argsort(avg_importances)[::-1]
   
+  print(indices)
+
   # Create plot
   plt.figure(figsize=(12, 8))
   
@@ -389,15 +412,16 @@ if __name__ == "__main__":
     print(f"rffeatures_train({choosechip}, {runsdir}, {thisfilter}, {run}, {datetime}, {silent})")
    
     if mode == "train":
+      print(f'rffeatures_train({choosechip.split(",")}, {runsdir}, {thisfilter.split(",")}, {run.split(",")}, {datetime.split(",")}, {silent})')
       #rffeatures_train(choosechip, runsdir, thisfilter, run, datetime, silent)
       if savemodel:
-        rffeatures_train(choosechip=choosechip, runsdir=runsdir,
-                         thisfilter=thisfilter, run=run,
-                         datetime=datetime, savemodel=True)
+        rffeatures_train(choosechips=choosechip.split(","), runsdir=runsdir,
+                         thisfilters=thisfilter.split(","), runs=run.split(","),
+                         datetimes=datetime.split(","), savemodel=True)
       else:
-        rffeatures_train(choosechip=choosechip, runsdir=runsdir,
-                         thisfilter=thisfilter, run=run,
-                         datetime=datetime)  
+        rffeatures_train(choosechips=choosechip.split(","), runsdir=runsdir,
+                         thisfilters=thisfilter.split(","), runs=run.split(","),
+                         datetimes=datetime.split(","))  
   
     else:
       rffeatures_predict(choosechip=choosechip, runsdir=runsdir,
