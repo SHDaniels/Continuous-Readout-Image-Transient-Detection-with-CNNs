@@ -16,15 +16,6 @@ import sys
 import os
 import pandas as pd
 
-def hpf(x, y, plot=False):
-    from scipy.ndimage import filters
-    from scipy.signal.windows import gaussian
-    b = gaussian(1000, 20)
-    #ga = filtfilt(b/b.sum(), [1.0], y)
-    ga = filters.convolve1d(y, b/b.sum())
-    if plot:
-        plt.plot(x, ga, alpha=0.9, c="g", label="g")
-    return ga
 
 
 class QuickReview:
