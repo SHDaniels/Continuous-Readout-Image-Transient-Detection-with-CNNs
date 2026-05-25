@@ -34,7 +34,15 @@ class QuickReview:
         self.i = 0
         self.lcvs = lcvs
 
-        self.fig, self.ax = plt.subplots(figsize=(10, 6))
+        """
+        select = ["2979" in l for l in self.lcvs]
+        self.series = self.series[select]
+        self.reject_lightcurve = np.array(self.reject_lightcurve)[select]
+        self.i = 0
+        self.lcvs = self.lcvs[select]
+        """
+
+        self.fig, self.ax = plt.subplots(2,1,figsize=(10, 12))
         plt.subplots_adjust(bottom=0.2)
         print("done init")
         # Create buttons
@@ -65,12 +73,28 @@ class QuickReview:
         self.move(1)
     
     def update_plot(self):
-        self.ax.clear()
+        
+        self.ax[0].clear()
         y = self.series[self.i]
-        self.ax.plot(y, alpha=0.5)
+        self.ax[0].plot(y, alpha=0.5)
         y2 = hpf(np.arange(len(y)), y)
-        self.ax.plot(y-y2+np.mean(y), alpha=0.5, color='r')
-        self.ax.set_title(f"Series {self.i+1}/{len(self.series)} -  Status: {self.reject_lightcurve[self.i]} {self.lcvs[self.i]}")
+        self.ax[0].plot(y-y2+np.mean(y), alpha=0.8, color='r')
+        self.ax[0].set_title(f"Series {self.i+1}/{len(self.series)} -  Status: {self.reject_lightcurve[self.i]} {self.lcvs[self.i]}")
+        self.ax[1].clear()
+        fft = np.fft.rfft(y) 
+        power_spectrum = np.abs(fft)**2  
+        freqs = np.fft.rfftfreq(len(y))
+        self.ax[1].plot(freqs, power_spectrum, alpha=0.5)
+        fft = np.fft.rfft(y-y2)  
+        power_spectrum = np.abs(fft)**2  
+        freqs = np.fft.rfftfreq(len(y))
+        self.ax[1].plot(freqs, power_spectrum, alpha=0.8)
+        
+        self.ax[1].set_yscale('log')
+        self.ax[1].set_xlim(0.01, 0.2) #1/100 pixels to 1/5 pixels scales
+        self.ax[1].set_xticks([0.01, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2]) #1/100 pixels to 1/5 pixels scales
+        self.ax[1].set_xticklabels(["1/100", "1/40", "1/20","1/13","1/10","1/6.67", "1/5"])
+
         plt.draw()
 
     def move(self, step):
@@ -93,6 +117,102 @@ class QuickReview:
     
 
 
+
+def reviewlabels(filename=None,
+                     verbose=None, diagnostic_plots=None, savemodel=False):
+
+  lcvsfile = filename
+  tagfile = filename.replace(".npy", f"_reviewed.npy")
+  path = config.RFPATH
+
+  NCl =  config.NCl
+  ap_column = config.ap_column
+
+  extension = config.extension
+  building_trainingset = config.BUILDINGTRAININGSET
+  wavelets = config.wavelets
+  wavelet = config.wavelet
+  #'haar'  # Start with 'haar', then try 'db4'                                     
+  level = config.waveletlevel
+  #5        # Choose an appropriate level (e.g., 5-8)                              
+
+  rfthreshold = config.rfthreshold
+  Nlc = 0
+  features = []
+  labels = []
+
+  lcvslist = np.load(path + "/" + lcvsfile, allow_pickle=True)
+  tags = np.load(path + "/" + tagfile)
+  tagselect = np.zeros(len(tags), bool) * False
+  rootdir = config.ROOT
+
+  labelsfile  = f"{rootdir}crwlabels_.csv"
+  print(f"reading labels from {labelsfile}")
+  labelsdf_here = pd.read_csv(labelsfile, index_col=0)
+  labels = np.array([labelsdf_here.iloc[i]["0"] for i in range(labelsdf_here.shape\
+[0])])
+  label2num_dict_here = {l[0]:i for i,l in enumerate(labelsdf_here.values)
+                         if l[0] not in ["Hartigan's"]}
+  label2num_dict_here["H"] = 2
+  Nfeatures = len(labels)
+
+  for i,lcv in enumerate(lcvslist):
+
+    print(f"\n\n{lcv}\n\n")
+    pieces = lcv.split(".")[0].split("_")
+    datetime = pieces[2]
+    run = pieces[3]
+    thisfilter= pieces[4]
+    choosechip = pieces[5].replace("c","")
+    seq = int(pieces[7])
+
+    x = int(pieces[9])
+    y = int(pieces[10])
+    print(choosechip, thisfilter, run,datetime, x, y)
+    #choosechip, run, thisfilter, datetime = lcv.split("_")                        
+    #lightcurve_ztf_20221020141806_000686_zi_c14_x_0003_4_0708_0764.csv'           
+    if i == 250:
+        plt.show()
+        plt.close('all')
+    try:
+
+      pos = np.load(config.ROOT + "/" + f"crwpos_{datetime}_{run}_{thisfilter}_{choosechip}.npy")
+    except FileNotFoundError:
+      continue
+
+    filedetails, lcvarrayfile, chipfilename, featuresfile, predictionfile, rootdir = config.makenames(datetime, run, thisfilter, choosechip)
+    print(f"reading features from {featuresfile}")
+    print(f"reading chipfilename {chipfilename}")
+    features_here = np.load(open(featuresfile, "rb"))
+
+    select = np.where((pos[:,0] == x) * (pos[:,1] == y))[0]
+    print(len(select))
+    try:
+      print(select[seq])
+    except IndexError:
+      continue
+    tagselect[i] = True
+    features_here = features_here[select[seq]:select[seq]+1]
+    assert len(features_here) == 1, "select did not work"
+    Nlc += len(features_here)
+
+
+    message = f"this code expects {Nfeatures} with wavelets set to {wavelets},"
+    message += "got {np.array(features).shape[1]}"
+
+    assert features_here.shape[1] == Nfeatures, message
+
+    features.append(features_here)
+    color = 'r' if tags[i] == 1 else 'k'
+    pd.read_csv(config.LCVSPATH + "/" + lcvslist[i])[["flux_hap_2"]].plot(color=color)
+    plt.title(f"{lcvslist[i]}\n{i}, label {tags[i]}")
+    
+  plt.show()
+
+
+
+
+
 def reviewlcvs(filename=None, pedix=None,
                choosechip=None, runsdir=None,
                thisfilter=None, run=None,
@@ -107,7 +227,7 @@ def reviewlcvs(filename=None, pedix=None,
       outfile = filename.replace(".npy", f"_{pedix}.npy")
       print(f"labels will be saved in {outfile}")
       path = config.LCVSPATH
-      ap_column = config.ap_column + 2
+      ap_column = config.ap_column 
   elif all(arg is None for arg in [choosechip, runsdir,
                                    thisfilter, run, datetime, extension]):
       NCl=  config.NCl
@@ -174,7 +294,10 @@ def reviewlcvs(filename=None, pedix=None,
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if len(sys.argv)>2:
-            reviewlcvs(sys.argv[1], sys.argv[2])
+            if len(sys.argv)>3:
+                reviewlabels(sys.argv[1], sys.argv[2])
+            else:
+                reviewlcvs(sys.argv[1], sys.argv[2])
         else:
             reviewlcvs(sys.argv[1])
     else:
