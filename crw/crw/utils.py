@@ -36,8 +36,8 @@ def hpf(x, y, plot=False):
     #ga = filtfilt(b/b.sum(), [1.0], y)
     ga = filters.convolve1d(y, b/b.sum())
     if plot:
-        plt.plot(x, ga, alpha=0.9, c="g", label="g")
-    return ga
+        plt.plot(x, y - ga, alpha=0.9, c="g", label="g")
+    return y - ga + y.mean()
 
 def checklength(filename):
     runsdir = config.runsdir
