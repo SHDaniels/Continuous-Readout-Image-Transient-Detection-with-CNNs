@@ -29,6 +29,15 @@ from scipy.signal import savgol_filter
 
 import crw_config as config
 
+def hpf(x, y, plot=False):
+    from scipy.ndimage import filters
+    from scipy.signal.windows import gaussian
+    b = gaussian(1000, 27)
+    #ga = filtfilt(b/b.sum(), [1.0], y)
+    ga = filters.convolve1d(y, b/b.sum())
+    if plot:
+        plt.plot(x, y - ga, alpha=0.9, c="g", label="g")
+    return y - ga + y.mean()
 
 def checklength(filename):
     runsdir = config.runsdir
@@ -476,7 +485,9 @@ def aggregate_rf_cv_weighted(X, y, n_splits=5, n_estimators=100, **rf_params):
         X_train, X_val = X[train_idx], X[val_idx]
         y_train, y_val = y[train_idx], y[val_idx]
 
-        rf = RandomForestClassifier(n_estimators=n_estimators, **rf_params)
+        rf = RandomForestClassifier(random_state=42, 
+                                    n_estimators=n_estimators, class_weight='balanced_subsample', 
+                                    max_depth=3, **rf_params)
 
         rf.fit(X_train, y_train)
         models.append(rf)

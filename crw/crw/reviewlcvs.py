@@ -16,24 +16,15 @@ import sys
 import os
 import pandas as pd
 
-def hpf(x, y, plot=False):
-    from scipy.ndimage import filters
-    from scipy.signal.windows import gaussian
-    b = gaussian(1000, 20)
-    #ga = filtfilt(b/b.sum(), [1.0], y)
-    ga = filters.convolve1d(y, b/b.sum())
-    if plot:
-        plt.plot(x, ga, alpha=0.9, c="g", label="g")
-    return ga
-
+from utils import hpf
 
 class QuickReview:
-    def __init__(self, series, lcvs):
+    def __init__(self, series, lcvs, FFT=True):
         self.series = series
         self.reject_lightcurve = [0] * len(series)
         self.i = 0
         self.lcvs = lcvs
-
+        self.FFT = FFT
         """
         select = ["2979" in l for l in self.lcvs]
         self.series = self.series[select]
@@ -75,25 +66,28 @@ class QuickReview:
     def update_plot(self):
         
         self.ax[0].clear()
-        y = self.series[self.i]
+        y = self.series[self.i,:,0]
         self.ax[0].plot(y, alpha=0.5)
         y2 = hpf(np.arange(len(y)), y)
-        self.ax[0].plot(y-y2+np.mean(y), alpha=0.8, color='r')
+        self.ax[0].plot(y2, alpha=0.8, color='r')
         self.ax[0].set_title(f"Series {self.i+1}/{len(self.series)} -  Status: {self.reject_lightcurve[self.i]} {self.lcvs[self.i]}")
         self.ax[1].clear()
-        fft = np.fft.rfft(y) 
-        power_spectrum = np.abs(fft)**2  
-        freqs = np.fft.rfftfreq(len(y))
-        self.ax[1].plot(freqs, power_spectrum, alpha=0.5)
-        fft = np.fft.rfft(y-y2)  
-        power_spectrum = np.abs(fft)**2  
-        freqs = np.fft.rfftfreq(len(y))
-        self.ax[1].plot(freqs, power_spectrum, alpha=0.8)
-        
-        self.ax[1].set_yscale('log')
-        self.ax[1].set_xlim(0.01, 0.2) #1/100 pixels to 1/5 pixels scales
-        self.ax[1].set_xticks([0.01, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2]) #1/100 pixels to 1/5 pixels scales
-        self.ax[1].set_xticklabels(["1/100", "1/40", "1/20","1/13","1/10","1/6.67", "1/5"])
+        if self.FFT:
+            fft = np.fft.rfft(y) 
+            power_spectrum = np.abs(fft)**2  
+            freqs = np.fft.rfftfreq(len(y))
+            self.ax[1].plot(freqs, power_spectrum, alpha=0.5)
+            fft = np.fft.rfft(y2)  
+            power_spectrum = np.abs(fft)**2  
+            freqs = np.fft.rfftfreq(len(y))
+            self.ax[1].plot(freqs, power_spectrum, alpha=0.8)
+            self.ax[1].set_yscale('log')
+            self.ax[1].set_xlim(0.01, 0.2) #1/100 pixels to 1/5 pixels scales
+            self.ax[1].set_xticks([0.01, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2]) #1/100 pixels to 1/5 pixels scales
+            self.ax[1].set_xticklabels(["1/100", "1/40", "1/20","1/13","1/10","1/6.67", "1/5"])
+        else:
+            y1 = self.series[self.i,:,1]
+            self.ax[1].plot(y1, alpha=0.8)
 
         plt.draw()
 
@@ -262,7 +256,7 @@ def reviewlcvs(filename=None, pedix=None,
       Xsave = np.load(open(lcvarrayfile, "rb"))
       print(lcvarrayfile)
       print(Xsave)
-      X = Xsave[:,:,ap_column].copy()
+      X = Xsave[:,:,ap_column:ap_column+2].copy()
   else:
       print(filename)
       lcvlist = np.load(filename)#open(filename),'rb')
@@ -274,7 +268,7 @@ def reviewlcvs(filename=None, pedix=None,
               Xsave = x.values
 
       Xsave = Xsave.transpose(2, 0, 1)
-      X = Xsave[:,:,ap_column].copy()
+      X = Xsave[:,:,ap_column:ap_column+2].copy()
 
 
   reviewer = QuickReview(X, lcvlist)#[:10])
