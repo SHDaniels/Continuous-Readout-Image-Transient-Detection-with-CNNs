@@ -12,7 +12,7 @@ import precision_recall as pr
 import get_postage_stamps as gpsf
 from sklearn.metrics import ConfusionMatrixDisplay
 import seaborn as sns
-
+from matplotlib.colors import LinearSegmentedColormap
 
 def getdf(direcname):
     """
@@ -3081,25 +3081,32 @@ def show_confusion_matrix(save_name, sats=False, label_pred_te=None, targ_te=Non
    
 
 
-def heatmap(save_name, folds=False):
+def heatmap(save_name, folds=False, color1='thistle', color2='grey',tlight='white', tdark='black'):
+    # Define your two endpoint colors
+    color_low  = color2   # for negative values
+    color_high = color1   #paleturquoise    # for positive values
     
-    our_feat_te = np.load("/home/3155/saved_loss/our_feat_te_"+save_name+".npy")
-    our_bness_te = np.load("/home/3155/saved_loss/our_bness_te_"+save_name+".npy")
-    our_lens_te = np.load("/home/3155/saved_loss/our_lens_te_"+save_name+".npy")
+    # Create the colormap dictionary
+    colors = [color_low , color_high]
+    my_cmap = LinearSegmentedColormap.from_list('my_diverging', colors)
 
-    our_targ_te = np.load("/home/3155/saved_loss/our_targ_te_"+save_name+".npy") 
-    targ_te = np.load("/home/3155/saved_loss/targ_te_"+save_name+".npy") 
+    our_feat_te = np.load("/lustre/lrspec/ZTF_data/saved_loss/our_feat_te_"+save_name+".npy")
+    our_bness_te = np.load("/lustre/lrspec/ZTF_data/saved_loss/our_bness_te_"+save_name+".npy")
+    our_lens_te = np.load("/lustre/lrspec/ZTF_data/saved_loss/our_lens_te_"+save_name+".npy")
+
+    our_targ_te = np.load("/lustre/lrspec/ZTF_data/saved_loss/our_targ_te_"+save_name+".npy") 
+    targ_te = np.load("/lustre/lrspec/ZTF_data/saved_loss/targ_te_"+save_name+".npy") 
     if folds==False:
-        our_pred_te_max = np.load("/home/3155/saved_loss/our_pred_te_max_"+save_name+".npy")
+        our_pred_te_max = np.load("/lustre/lrspec/ZTF_data/saved_loss/our_pred_te_max_"+save_name+".npy")
     else:
         #can't determine the max until i average predictions
         foldses = ["0","1","2","3","4"]
         label_pred_tes = []
         for fold in foldses:
-            label_pred_tes.append(np.load("/home/3155/saved_loss/label_pred_te_"+save_name+"_fold_"+str(fold)+".npy"))
+            label_pred_tes.append(np.load("/lustre/lrspec/ZTF_data/saved_loss/label_pred_te_"+save_name+"_fold_"+str(fold)+".npy"))
         label_pred_te = np.average(np.array(label_pred_tes),axis=0)
         # print(label_pred_te.shape)
-        targ_te = np.load('/home/3155/saved_loss/targ_te_'+save_name+'.npy')
+        targ_te = np.load('/lustre/lrspec/ZTF_data/saved_loss/targ_te_'+save_name+'.npy')
         mask = np.sum(([targ_te==2],[targ_te==1]), axis=0)[0]
         # print(mask)
         
@@ -3181,7 +3188,7 @@ def heatmap(save_name, folds=False):
         efficiency,
         xticklabels=bottom_tick_labels,
         yticklabels=brightness_values,
-        cmap="viridis",
+        cmap=my_cmap, #viridis
         annot=False,
         vmin=0,
         vmax=1,
@@ -3224,9 +3231,9 @@ def heatmap(save_name, folds=False):
                 text = f"{efficiency[i, j]:.2f} ± {error[i, j]:.2f}" #{total_hist[i,j]}"#
                 # Add the text annotation in the center of each bin
                 if efficiency[i, j]<.8:
-                    color="white"
+                    color=tlight
                 else:
-                    color='orange'
+                    color=tdark #thistle
                 plt.text(
                     j + 0.5,
                     i + 0.5,
@@ -3526,3 +3533,164 @@ def add_band(df):
         band.append(row['filename'][27])
     df["Band"] = band
     return df
+
+
+
+
+def add_snr_both_filtered_hap2(olddf):
+    '''
+    add pos and neg integrated snrs
+    returns the dataframe with new columns for outputs of
+    snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, brightest/dimmest row 
+    currently hardcoded half ap = 2 
+    '''
+    wid=10
+    df = olddf.copy()
+    column_names_brightening = ['snr_local_brightening', 'snr_global_brightening', 'noise_local_brightening', 'noise_global_brightening', 
+                'local_average_outside_brightening', 'height_brightening', 'FWHM_brightening', 'signal_local_brightening', 'central_point_brightening']
+    column_names_dimming = ['snr_local_dimming', 'snr_global_dimming', 'noise_local_dimming', 'noise_global_dimming', 
+                'local_average_outside_dimming', 'height_dimming', 'FWHM_dimming', 'signal_local_dimming', 'central_point_dimming']
+    column_names_dimming = np.array(column_names_dimming)
+    for i, name in enumerate(column_names_dimming):
+        column_names_dimming[i]=name+'_filtered2'
+    column_names_brightening = np.array(column_names_brightening)
+    for i, name in enumerate(column_names_brightening):
+        column_names_brightening[i]=name+'_filtered2'
+
+    for col in column_names_brightening:
+        df[col] = np.zeros(len(df))
+    for col in column_names_dimming:
+        df[col] = np.zeros(len(df))
+    for filename, filenamegroup in df.groupby('filename'):  
+        for quad, quadgroup in filenamegroup.groupby('quad'):
+            for closest_x, closest_xgroup in quadgroup.groupby('closest_x'): #which light curve it is
+                # print(len(closest_xgroup))
+                tot = get_tot_csv_filtered_hap2(df, closest_xgroup.index[0]) #will be the same for all so just using the first
+                # print(tot)
+                # if len(closest_xgroup)>1: #breaks if not enough FIX THIS
+                for index in closest_xgroup.index:
+                    # print(df.loc[index, "original_rows_from_nn"])
+                    # print(type(df.loc[index, "original_rows_from_nn"]))
+                    # row = int(df.loc[index, "row_from_nn"]) + wid
+                    if type(df.loc[index, "original_rows_from_nn"])==str:
+                        aggrows = np.fromstring(df.loc[index, "original_rows_from_nn"][1:-1], dtype=float, sep=',')
+                    else:
+                        aggrows = df.loc[index, "original_rows_from_nn"] + wid
+                    #first brightening
+                    snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute = get_snr_brightest(tot, aggrows)                    
+                    df.loc[index, column_names_brightening] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute]
+                    #now dimming
+                    snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute = get_snr_dimmest(tot, aggrows)                    
+                    df.loc[index, column_names_dimming] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute]
+
+    return df      
+
+
+
+def get_tot_csv_filtered_hap2(
+    df,
+    index, lc_filename=None,
+    lcfpath='/lustre/lrspec/ZTF_data/lightcurves/1020_filtered/'  
+):
+    """
+    returns tot, maxcols: an array that is the flux of the star streak
+    given an aperture that is halfaperture*2+1
+    and if tracking=true, tracks when the streak posittion fluctuates
+    oif tracking==false, goes based on average center of streak
+    put in lc_filename yourself or it will take it from the dataframe 
+    (in which case df and index are ignored)
+    """
+    # Handle filename logic 
+    if lc_filename == None:
+        lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+        df_row = df.loc[index]
+        lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+"_filtered_hap2.csv"
+    
+    # if lcfpath==None:
+    #     lcfpath = '/lustre/lrspec/ZTF_data/lightcurves/1020/'  
+    lc_df = pd.read_csv(lcfpath + lc_filename)
+    
+    # Calculate flux and error
+    tot = pd.read_csv(lcfpath + lc_filename)['flux_hap_2']
+
+    return np.array(tot)
+
+
+
+def add_snr_both_filtered_hap3(olddf):
+    '''
+    add pos and neg integrated snrs
+    returns the dataframe with new columns for outputs of
+    snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, brightest/dimmest row 
+    currently hardcoded half ap = 2 
+    '''
+    wid=10
+    df = olddf.copy()
+    column_names_brightening = ['snr_local_brightening', 'snr_global_brightening', 'noise_local_brightening', 'noise_global_brightening', 
+                'local_average_outside_brightening', 'height_brightening', 'FWHM_brightening', 'signal_local_brightening', 'central_point_brightening']
+    column_names_dimming = ['snr_local_dimming', 'snr_global_dimming', 'noise_local_dimming', 'noise_global_dimming', 
+                'local_average_outside_dimming', 'height_dimming', 'FWHM_dimming', 'signal_local_dimming', 'central_point_dimming']
+    column_names_dimming = np.array(column_names_dimming)
+    for i, name in enumerate(column_names_dimming):
+        column_names_dimming[i]=name+'_f3'
+    column_names_brightening = np.array(column_names_brightening)
+    for i, name in enumerate(column_names_brightening):
+        column_names_brightening[i]=name+'_f3'
+
+    for col in column_names_brightening:
+        df[col] = np.zeros(len(df))
+    for col in column_names_dimming:
+        df[col] = np.zeros(len(df))
+    for filename, filenamegroup in df.groupby('filename'):  
+        for quad, quadgroup in filenamegroup.groupby('quad'):
+            for closest_x, closest_xgroup in quadgroup.groupby('closest_x'): #which light curve it is
+                # print(len(closest_xgroup))
+                tot = get_tot_csv_filtered_hap3(df, closest_xgroup.index[0]) #will be the same for all so just using the first
+                # print(tot)
+                # if len(closest_xgroup)>1: #breaks if not enough FIX THIS
+                for index in closest_xgroup.index:
+                    # print(df.loc[index, "original_rows_from_nn"])
+                    # print(type(df.loc[index, "original_rows_from_nn"]))
+                    # row = int(df.loc[index, "row_from_nn"]) + wid
+                    if type(df.loc[index, "original_rows_from_nn"])==str:
+                        aggrows = np.fromstring(df.loc[index, "original_rows_from_nn"][1:-1], dtype=float, sep=',')
+                    else:
+                        aggrows = df.loc[index, "original_rows_from_nn"] + wid
+                    #first brightening
+                    snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute = get_snr_brightest(tot, aggrows)                    
+                    df.loc[index, column_names_brightening] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute]
+                    #now dimming
+                    snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute = get_snr_dimmest(tot, aggrows)                    
+                    df.loc[index, column_names_dimming] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute]
+
+    return df      
+
+
+
+def get_tot_csv_filtered_hap3(
+    df,
+    index, lc_filename=None,
+    lcfpath='/lustre/lrspec/ZTF_data/lightcurves/1020_filtered/'  
+):
+    """
+    returns tot, maxcols: an array that is the flux of the star streak
+    given an aperture that is halfaperture*2+1
+    and if tracking=true, tracks when the streak posittion fluctuates
+    oif tracking==false, goes based on average center of streak
+    put in lc_filename yourself or it will take it from the dataframe 
+    (in which case df and index are ignored)
+    """
+    # Handle filename logic 
+    if lc_filename == None:
+        lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+        df_row = df.loc[index]
+        lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+"_filtered_hap3.csv"
+    
+    # if lcfpath==None:
+    #     lcfpath = '/lustre/lrspec/ZTF_data/lightcurves/1020/'  
+    lc_df = pd.read_csv(lcfpath + lc_filename)
+    
+    # Calculate flux and error
+    tot = pd.read_csv(lcfpath + lc_filename)['flux_hap_3']
+
+    return np.array(tot)

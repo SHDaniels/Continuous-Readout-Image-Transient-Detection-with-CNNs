@@ -61,7 +61,7 @@ def add_ra_dec(olddf):
     return df
 
 
-def query_gaia_for_stars(olddf, radius=9):
+def query_gaia_for_stars(olddf, radius=9, partial = "/lustre/lrspec/ZTF_data/gaia_partial.npy"):
     """
     Query Gaia DR3 to match stars in the given DataFrame based on RA and Dec.
     Adds Gaia source ID, magnitude (G, BP-RP, RP, BP), and variability information.
@@ -81,8 +81,17 @@ def query_gaia_for_stars(olddf, radius=9):
     ]
     
     new_data = []
-    
-    for _, row in df.iterrows():
+    if partial!=None:
+        partial = np.load(partial, allow_pickle=True)
+        partial_1 = np.load("/lustre/lrspec/ZTF_data/gaia_partial_1.npy", allow_pickle=True) 
+        partial_2 = np.load("/lustre/lrspec/ZTF_data/gaia_partial_2.npy", allow_pickle=True) 
+        partial_3 = np.load("/lustre/lrspec/ZTF_data/gaia_partial_3.npy", allow_pickle=True) 
+
+        starting_row = len(partial)+len(partial_1)+len(partial_2)+len(partial_3)
+    else:
+        starting_row = 0
+        
+    for _, row in df[starting_row:].iterrows():
         if pd.isna(row['star_ra']) or pd.isna(row['star_dec']):
                 print("NaN coordinate, skipping Gaia query for this row.")
                 new_data.append([None, None, None, None, None])
@@ -134,7 +143,7 @@ def query_gaia_for_stars(olddf, radius=9):
             ])
         else:
             new_data.append([None, None, None, None, None])
-        np.save("/lustre/lrspec/ZTF_data/gaia_partial", new_data)
+        np.save("/lustre/lrspec/ZTF_data/gaia_partial_4", new_data)
     
     df[['gaia_source_id',  'ztf_g_gaia_bp_rp_mag', 'ztf_ri_gaia_rp_mag',  'variability', 'in_vari_summary']] = new_data
     return df
