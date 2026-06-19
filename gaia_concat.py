@@ -152,6 +152,20 @@ nodupsconcat = pd.read_csv('/home/3155/nodupsconcat')
 
 nodupsconcat = add_ra_dec(nodupsconcat)
 
-nodupsconcat = query_gaia_for_stars(nodupsconcat)
+# nodupsconcat = query_gaia_for_stars(nodupsconcat)
+
+partial_0 = np.load("/lustre/lrspec/ZTF_data/gaia_partial.npy", allow_pickle=True)
+partial_1 = np.load("/lustre/lrspec/ZTF_data/gaia_partial_1.npy", allow_pickle=True)
+partial_2 = np.load("/lustre/lrspec/ZTF_data/gaia_partial_2.npy", allow_pickle=True)
+partial_3 = np.load("/lustre/lrspec/ZTF_data/gaia_partial_3.npy", allow_pickle=True)
+partial_4 = np.load("/lustre/lrspec/ZTF_data/gaia_partial_4.npy", allow_pickle=True)
+
+partials = np.vstack((partial_0,partial_1,partial_2,partial_3,partial_4))
 
 nodupsconcat.to_csv('/home/3155/nodupsconcat_gaia')
+
+nodupsconcat[['gaia_source_id',  'ztf_g_gaia_bp_rp_mag', 'ztf_ri_gaia_rp_mag',  'variability', 'in_vari_summary']] = partials
+
+
+nodupsconcat.to_csv('/home/3155/nodupsconcat_gaia')
+

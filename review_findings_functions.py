@@ -907,7 +907,7 @@ def plot_lc_from_csv_with_transient_df(lc_filename, df, rowindex, hap=2):
     if lc_filename==None:
         lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
         df_row = df.loc[rowindex]
-        lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quadrant'])+'_'+str(int(df_row['closest_x']))+'_'+str(int(df_row['closest_y']))+'.csv'
+        lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quadrant'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+'.csv'
     
     lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
     lc_df = pd.read_csv(lightcurve_path+lc_filename)
@@ -3694,3 +3694,368 @@ def get_tot_csv_filtered_hap3(
     tot = pd.read_csv(lcfpath + lc_filename)['flux_hap_3']
 
     return np.array(tot)
+
+
+def add_ra_dec(olddf):
+    fpath_header = "/lustre/lrspec/ZTF_data/corrected_coordinates/new_training_headers/"
+    df = olddf.copy()
+    df['star_ra']=np.full(len(df), np.nan)
+    df['star_dec']=np.full(len(df), np.nan)
+    for index, row in df.iterrows():
+        image_filename = row['filename']
+        # print(image_filename[:-6])
+        quad = row['quadrant']
+        
+        xy_file = "/lustre/lrspec/ZTF_data/corrected_coordinates/xy_arrays/" + image_filename[:-6] + "_" + str(quad) + ".fits"
+        header_file = fpath_header + image_filename[:-6] + "_" + str(quad) + ".wcs"
+        # print(header_file)
+    
+        try:
+            with fits.open(xy_file) as hdul_xy:
+                data = hdul_xy[1].data  
+                stored_x = data["X"]
+                stored_y = data["Y"]
+        except Exception as e:
+            print(f"Could not open xy_file: {xy_file} — {e}")
+            stored_x = stored_y = None
+    
+        try:
+            with fits.open(header_file) as hdul_header:
+                wcs = WCS(hdul_header[0].header, relax=True)
+        except Exception as e:
+            print(f"Could not open header_file: {header_file} — {e}")
+            wcs = None
+    
+        if stored_x is not None and stored_y is not None and wcs is not None:
+            closest_x, closest_y = row['closest_x'], row['closest_y']
+            ra, dec = wcs.all_pix2world(closest_x, closest_y, True)
+            df.loc[index, 'star_ra' ] = ra
+            df.loc[index, 'star_dec' ] = dec
+    return df
+
+
+
+def add_distance_from_start(old_df):
+    '''
+    difference between the star's starting position
+    along the streak 
+    and the transient candidate's position
+    essentially a time delay
+    #for adding simulteneity
+    '''
+    df = old_df.copy()
+    df['distance_from_start'] = df['closest_y']-(df['row_from_nn']+10)
+    return df
+
+def get_simultaneous_ones(index, our_cands, df_last,  snr_limit=.1, threshold=20):
+    '''
+    getting cands that are simultaneous in time to the cand at index of our_cands
+    uses a snr limit of snr_local unfiltered, default .1
+    returns a list of their indices from df_last
+    '''
+    indices = [index]
+    df_last_ = df_last[df_last['snr_local']>snr_limit] #TODO
+    row = df_last.loc[index]
+    same_file_df = df_last_[df_last_['filename']==row['filename']]
+    # print(np.shape(same_file_df))
+    # print(same_file_df)
+    for i, row2 in same_file_df.iterrows():
+        # print(i)
+        if np.abs(row['distance_from_start']-row2['distance_from_start'])<threshold and row['closest_x']!=row2['closest_x'] and row['type']==row2['type']and row['quadrant']==row2['quadrant']:
+            # print(np.abs(row['distance_from_start']-row2['distance_from_start']))
+            indices.append(i)
+    return indices
+
+def get_simultaneous_image_ones(index, our_cands, df_last,  snr_limit=.1, threshold=20):
+    '''
+    getting cands that are simultaneous in position (image position) to the cand at index of our_cands
+    uses a snr limit of snr_local unfiltered, default .1
+    returns a list of their indices from df_last
+    '''
+    indices = [index]
+    df_last_ = df_last[df_last['snr_local']>snr_limit] 
+    row = df_last.loc[index]
+    same_file_df = df_last_[df_last_['filename']==row['filename']]
+    # print(np.shape(same_file_df))
+    # print(same_file_df)
+    for i, row2 in same_file_df.iterrows():
+        # print(i)
+        if np.abs(row['row_from_nn']-row2['row_from_nn'])<threshold and row['closest_x']!=row2['closest_x'] and row['type']==row2['type']and row['quadrant']==row2['quadrant']:
+            # print(np.abs(row['row_from_nn']-row2['row_from_nn']))
+            indices.append(i)
+    return indices
+
+
+def add_snr_column(df):
+    '''
+    add a column that shows the bigger snr, so determining whether a transient is dimming or brightening
+    and a column that says what type it is
+    for both brightening and dimming
+    right now not for filtered lcs
+    '''
+    df['snr_local']=np.zeros(len(df))
+    df['snr_global']=np.zeros(len(df))
+    df['real_type_local'] = np.full(len(df), "unsure")
+    df['real_type_global'] = np.full(len(df), "unsure")
+    for i, row in df.iterrows():
+        if row['snr_local_brightening']>row['snr_local_dimming']:
+            df.loc[i, 'snr_local']=row['snr_local_brightening']
+            df.loc[i, 'real_type_local']='pos'
+        else:
+            df.loc[i, 'snr_local']=row['snr_local_dimming']
+            df.loc[i, 'real_type_local']='neg'
+        if row['snr_global_brightening']>row['snr_global_dimming']:
+            df.loc[i, 'snr_global']=row['snr_global_brightening']
+            df.loc[i, 'real_type_global']='pos'
+        else:
+            df.loc[i, 'snr_global']=row['snr_global_dimming']
+            df.loc[i, 'real_type_global']='neg'
+    return df
+
+
+
+def add_rf_lightcurves(concat, predictions_file='/lustre/lrspec/ZTF_data/random_forest_training/predictions_updated.csv'):
+    '''
+    add predictions from random forest as df column
+    '''
+    df = concat.copy()
+    predictions = pd.read_csv(predictions_file, names=['filename', 'rf'])
+    for i, df_row in df.iterrows():
+        lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quadrant'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+'.csv'
+        matching_row = predictions[predictions['filename']==lc_filename]
+        # print(lc_filename)
+        # print(matching_row['rf'].values[0])
+        if len(matching_row)==1:
+            df.loc[i, 'random_forest_result']=matching_row['rf'].values[0]
+            # print('found it')
+        elif len(matching_row)==0:
+            # concat.loc[i, 'random_forest_result']=None #actually can just leave this as a NaN
+            
+            print('didnt find it')
+            print(matching_row)
+        else:
+            
+            print('something strange is happening...')
+            print(matching_row)
+            print(len(matching_row))
+    
+    return df
+
+def plot_lcs_together(*rowindex, df, time_adjusted=True, hap=2, xmin=None, xmax=None, zoom=None, use_snr_center=True):
+    '''
+    plots light curve with transient candidates, color coded to
+    which part of the pipeline they were removed on
+    hap: half aperture for light curve, allowable from 2 to 5
+    '''
+    fig, ax = plt.subplots()
+    for i, rindex in enumerate(rowindex):
+        lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+        df_row = df.loc[rindex]
+        lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quadrant'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+'.csv'
+        row_num = (int(df_row['row_from_nn'])+10)
+        if use_snr_center==True:
+            if df_row['real_type_local']=='pos':
+                row_num = int(df_row['central_point_brightening'])
+            if df_row['real_type_local']=='neg':
+                row_num = int(df_row['central_point_dimming'])
+        lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+        lc_df = pd.read_csv(lightcurve_path+lc_filename)
+        
+        
+        timeseries = lc_df['flux_hap_'+str(hap)]
+        to_subtract = i*1.5
+        tot = (timeseries-np.min(timeseries))/(np.max(timeseries)-np.min(timeseries)) - to_subtract
+        
+        fluxerr = np.sqrt(timeseries / 6.2 + 8.5**2)/(np.max(timeseries)-np.min(timeseries))  # 6.2 electrons per photon, read noise is 8.5
+        if time_adjusted==True:
+            remove = int(df_row["closest_y"])
+        else:
+            remove = 0
+        ax.errorbar(
+            np.arange(len(tot))-remove,
+            tot,
+            yerr=fluxerr,
+            color="black",
+            ecolor="black",
+            # elinewidth=1,
+            linestyle="none",
+            marker=".",
+            # markersize=1,
+            alpha=0.4,
+            label="Shot Noise",
+            # zorder=10
+        )
+    
+        ax.plot(
+            np.arange(len(tot))[row_num - 9 : row_num + 9] -remove,
+            tot[row_num - 9 : row_num + 9],
+            color="white",
+            linestyle="none",
+            marker=".",
+            markersize=7,
+            markeredgecolor="red",
+            zorder=10,
+        )
+    if time_adjusted==True:
+        ax.set_title("Lightcurve with time adjusted for star position "+str(rowindex[0]),fontsize=20)
+    else:
+        ax.set_title("Lightcurve with time NOT adjusted for star position "+str(rowindex[0]),fontsize=20)
+
+    ax.set_ylabel("Flux (scaled)", fontsize=11)
+    # ax.set_xlabel("Time (seconds)", fontsize=12)
+    # ax.set_xticks(np.linspace(0, 3080 * 10 / 11, 10))
+    # ax.set_xticklabels(
+    #     np.round(np.linspace(0, 9, 10, dtype="int")), fontsize=13
+    # )
+    # ax.legend(bbox_to_anchor=(1.1, 1.05),fontsize=18)
+    ax.set_xlim(xmin,xmax)
+    if zoom!=None:
+        ax.set_xlim(row_num - zoom-remove,row_num +zoom-remove)
+    fig.show()
+    
+def plot_lcs_from_file(rindex, df, time_adjusted=True, hap=2, xmin=None, xmax=None, zoom=None, use_snr_center=True, number=6):
+    '''
+    plots light curve with transient candidates, color coded to
+    which part of the pipeline they were removed on,
+    with the top Number brightest other streaks from the same file as them
+    aligned either by space or by time
+    hap: half aperture for light curve, allowable from 2 to 5
+    '''
+    fig, ax = plt.subplots(figsize=(20,15))
+    lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+    # for i, rindex in enumerate(rowindex):
+    #brightest_lcs = 
+        
+    df_row = df.loc[rindex]
+    lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quadrant'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+'.csv'
+    row_num = (int(df_row['row_from_nn'])+10)
+    if use_snr_center==True:
+        if df_row['real_type_local']=='pos':
+            row_num = int(df_row['central_point_brightening'])
+        if df_row['real_type_local']=='neg':
+            row_num = int(df_row['central_point_dimming'])
+    lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+    lc_df = pd.read_csv(lightcurve_path+lc_filename)
+    
+    
+    timeseries = lc_df['flux_hap_'+str(hap)]
+    to_subtract = 0
+    tot = (timeseries-np.min(timeseries))/(np.max(timeseries)-np.min(timeseries)) - to_subtract
+    
+    fluxerr = np.sqrt(timeseries / 6.2 + 8.5**2)/(np.max(timeseries)-np.min(timeseries))  # 6.2 electrons per photon, read noise is 8.5
+    if time_adjusted==True:
+        remove = int(df_row["closest_y"])
+    else:
+        remove = 0
+    plt.axvline(row_num - remove, alpha=.5)
+    ax.errorbar(
+        np.arange(len(tot))-remove,
+        tot,
+        yerr=fluxerr,
+        color="black",
+        ecolor="black",
+        # elinewidth=1,
+        linestyle="none",
+        marker=".",
+        # markersize=1,
+        alpha=0.4,
+        label="Shot Noise",
+        # zorder=10
+    )
+    
+    ax.plot(
+        np.arange(len(tot))[row_num - 9 : row_num + 9] -remove,
+        tot[row_num - 9 : row_num + 9],
+        color="white",
+        linestyle="none",
+        marker=".",
+        markersize=7,
+        markeredgecolor="red",
+        zorder=10,
+    )
+    lc_list, to_remove = make_brightest_lcs_array(25752, df, number=number)
+    for i in range(len(to_remove)):
+        to_subtract = 1.5*(i+1)
+        timeseries = lc_list[i]
+        if time_adjusted==True:
+            remove = to_remove[i]
+        tot = (timeseries-np.min(timeseries))/(np.max(timeseries)-np.min(timeseries)) - to_subtract
+        ax.errorbar(
+        np.arange(len(tot))-remove,
+        tot,
+        yerr=fluxerr,
+        color="black",
+        ecolor="black",
+        # elinewidth=1,
+        linestyle="none",
+        marker=".",
+        # markersize=1,
+        alpha=0.4,
+        label="Shot Noise",
+        # zorder=10
+    )
+    
+    if time_adjusted==True:
+        ax.set_title("Lightcurve with time adjusted for star position "+str(rindex),fontsize=20)
+    else:
+        ax.set_title("Lightcurve with time NOT adjusted for star position "+str(rindex),fontsize=20)
+
+    ax.set_ylabel("Flux (scaled)", fontsize=11)
+    # ax.set_xlabel("Time (seconds)", fontsize=12)
+    # ax.set_xticks(np.linspace(0, 3080 * 10 / 11, 10))
+    # ax.set_xticklabels(
+    #     np.round(np.linspace(0, 9, 10, dtype="int")), fontsize=13
+    # )
+    # ax.legend(bbox_to_anchor=(1.1, 1.05),fontsize=18)
+    ax.set_xlim(xmin,xmax)
+    if zoom!=None:
+        ax.set_xlim(row_num - zoom-remove,row_num +zoom-remove)
+    fig.show()
+    
+    
+    
+def make_brightest_lcs_array(rindex, df, number=6):
+    hap=2
+    lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+    df_row = df.loc[rindex]
+    lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quadrant'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+'.csv'
+    image_filename = df_row['filename']
+    # print(image_filename[:-6])
+    quad = df_row['quadrant']
+    
+    xy_file = "/lustre/lrspec/ZTF_data/corrected_coordinates/xy_arrays/" + image_filename[:-6] + "_" + str(quad) + ".fits"
+    # header_file = fpath_header + image_filename[:-6] + "_" + str(quad) + ".wcs"
+    # print(header_file)
+
+    try:
+        with fits.open(xy_file) as hdul_xy:
+            data = hdul_xy[1].data 
+            if len(data)>number:
+                data = data[:number] #we'll try looking at the top number - 6?
+            stored_x = data["X"]
+            stored_y = data["Y"]
+    except:
+        print("ISSUES")
+        
+    lc_list = []
+    to_subtract = [] #first ours
+    # lc_df = pd.read_csv(lightcurve_path+lightcurve_name)
+    # tot = lc_df['flux_hap_'+str(hap)]
+    # lc_list.append(tot)
+    # to_subtract.append(stored_y[i])
+            
+    for index in range(len(data)):
+        lightcurve_name = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quadrant'])+'_'+f'{int(stored_x[index]):04}'+'_'+f'{int(stored_y[index]):04}'+'.csv'
+        if lightcurve_name!=lc_filename:
+            lc_df = pd.read_csv(lightcurve_path+lightcurve_name)
+            tot = lc_df['flux_hap_'+str(hap)].values
+            lc_list.append(tot)
+            to_subtract.append(stored_y[index])
+    lc_list = np.array(lc_list)
+    to_subtract = np.array(to_subtract)
+    return lc_list, to_subtract
+        
+    
+        
+        
+    
