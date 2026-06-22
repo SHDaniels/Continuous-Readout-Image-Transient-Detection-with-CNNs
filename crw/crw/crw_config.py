@@ -1,16 +1,18 @@
-import numpy as np
+import numpy as npb
 import os
 #i20221020138241, 000686, zi, c01)
 #20221020141806, 000686, zi, c01
 #ztfcrm_20221020138241_000686_zi_01.csv
-
+#20221020141806 
+#686 zi 02
 ROOT = "/lustre/lrspec/ZTF_data/outputs/1020/"
 LCVSPATH = "/lustre/lrspec/ZTF_data/lightcurves/1020/"
 RFPATH = "/lustre/lrspec/ZTF_data/random_forest_training/"
 thisfilter = "zi"
 run = "000686"
-datetime = "20221020138241" #"20221020141806" #"20221020138241" #"20221020148032" #"20221020148032"                                                                
-choosechip = "02" #"05"      
+datetime = "20221020138241"
+#_000686_zi_03"20221020141806" #"20221020138241" #"20221020141806" #"20221020138241" #"20221020148032" #"20221020148032"                                                                
+choosechip = "03" #"05"      
 
 ap_column = 4 #aperture is e.g. 4 -> 2x2+1 5 -> 3x2+1
 
@@ -23,7 +25,7 @@ NCl = 2
 wavelets = True
 wavelet = 'haar'
 waveletlevel = 5
-rfthreshold = 0.8
+rfthreshold = 0.75#99
 
 
 VERBOSE = True

@@ -29,6 +29,22 @@ from scipy.signal import savgol_filter
 
 import crw_config as config
 
+def getfromlcvname(lcv):
+
+    pieces = lcv.split(".")[0].split("_")
+    ieces = lcv.split(".")[0].split("_")
+    datetime = pieces[2]
+    run = pieces[3]
+    thisfilter= pieces[4]
+    choosechip = pieces[5].replace("c","")
+    seq = int(pieces[7])
+    x = int(pieces[9])
+    y = int(pieces[10])
+    a = int(pieces[8])
+
+    return datetime, run, thisfilter, choosechip, seq, x, y, a
+
+
 def hpf(x, y, plot=False):
     from scipy.ndimage import filters
     from scipy.signal.windows import gaussian
@@ -410,7 +426,7 @@ def lowpass_filter(data, wavelet='db4', level=5):
       coeff = pywt.wavedec(signal[i], wavelet, level=level)
       sigma = np.median(np.abs(coeff[-level])) / 1
       uthresh = sigma * np.sqrt(2 * np.log(len(signal[i])))
-      coeff[1:] = (pywt.threshold(i, value=uthresh, mode='soft') for i in coeff[1:])
+      coeff[1:] = (pywt.threshold(j, value=uthresh, mode='soft') for j in coeff[1:])
       filtered_data[i, :] = pywt.waverec(coeff, wavelet)
     return filtered_data + means[:,np.newaxis]
         
@@ -515,6 +531,8 @@ def predict_weighted(models, weights, X, aggregation='SOFT'):
     """
     all_predictions = []
 
+    print(f"predicting with {X.shape} features")
+
     for model, weight in zip(models, weights):
         if aggregation == 'hard':
             pred = model.predict(X)
@@ -569,7 +587,7 @@ def binary_badlcvs(X):
 
 
       
-def plotalllcs(X, labels=None, filedetails=None):
+def plotalllcs(X, labels=None, filedetails=None, show=False):
   
   colors = [ "k", "r", "b", "g", "y"]
   if not labels is None:
@@ -622,7 +640,8 @@ def plotalllcs(X, labels=None, filedetails=None):
             axs[i].axis('off')    
 
           plt.savefig(f"{config.ROOT}/plots/allplots{filedetails}_batch{j}_{valid}.png")
-      plt.show()
+      if show:
+          plt.show()
 
   else:
     nlcs = int(X.shape[0] / 4 + 0.5)
@@ -638,26 +657,28 @@ def plotalllcs(X, labels=None, filedetails=None):
 
     if not filedetails is None:
       plt.savefig(f"{config.ROOT}/plots/allplots{filedetails}.png")
-  plt.show()
+  if show:
+      plt.show()
 
 
 
       
-def plotallfeatures(features, labels=None, filedetails=None):
+def plotallfeatures(features, labels=None, filedetails=None, show=False):
   
   colors = [ "k", "r", "b", "g", "y"]
   j = 0
   for i,f in enumerate(features.T):
     fig, axs = plt.subplots(5, 4, figsize=(10, 10))
     axs = axs.ravel()
-    print(i)
     for k,g in enumerate(features.T[i+1:]):
       for l in np.unique(labels):
           inds = labels == l
           axs[k].plot(f[inds], g[inds], '.',  color=colors[l], alpha=0.6, lw=0.1)
-          
+    if not filedetails is None:
+      plt.savefig(f"{config.ROOT}/plots/allfeatureplots{filedetails}.png")
           #axs[i].axis('off')
-    plt.show()
+    if show:
+        plt.show()
 
 def interactive_plot_selector(data):
     choices, fig, ax = [], *plt.subplots(figsize=(15,5))

@@ -7,6 +7,7 @@ from argparse import ArgumentParser
 import numpy as np
 from utils import plotalllcs, loaddata, savehpflcs, binary_badlcvs, plotallfeatures
 
+addlabels = False
 
 def launchpipeline(choosechip=None, runsdir=None, thisfilter=None,
                    run=None, datetime=None, silent=None):
@@ -26,6 +27,7 @@ def launchpipeline(choosechip=None, runsdir=None, thisfilter=None,
         X, Xpos, labels, filedetails, choosechip, runsdir, thisfilter, run, \
         datetime, extension, verbose  = loaddata(choosechip, runsdir, thisfilter, run,
                                                  datetime, silent)
+    """
     print("\n\n##################################")
     print("Step 3: extract features")
     print(f"there are {X.shape[0]} lightcurves to analyze on chip {choosechip}")
@@ -36,22 +38,27 @@ def launchpipeline(choosechip=None, runsdir=None, thisfilter=None,
                     extension, verbose)
     
     print("done feature extraction")
-    return
+    """
+    #return
 
     print("\n\n##################################")    
     print("Step 4: label lightcurves")
     filedetails, lcvarrayfile, chipfilename, featuresfile, predictionfile, rootdir = config.makenames(datetime, run, thisfilter, choosechip)
     labels = rffeatures_predict(choosechip, runsdir, thisfilter, run, datetime,
-                       extension, verbose)
-    _ = binary_badlcvs(X)
-    binarylabels = ((_[:,0] < 150) & (_[:,1:].min(axis=1) > 20)).astype(int) * 2
-    print(np.unique(binarylabels), np.unique(labels))
-    labels = labels + binarylabels
-    print(np.unique(labels))
-    labels = np.max(np.dstack([labels, binarylabels]).squeeze(), axis=1).astype(int)
-    features = np.load(open(featuresfile.replace("crwfeatures","crwfeatures_wwvt"), "rb"))
-    plotallfeatures(features, labels=labels, filedetails=None)
+                                extension, verbose = verbose)
+    if addlabels :
+        #_ = binary_badlcvs(X)
+        #binarylabels = ((_[:,0] < 150) & (_[:,1:].min(axis=1) > 20)).astype(int) * 2
+        labels = labels #+ binarylabels
+        #print(np.unique(labels))
+        #labels = np.max(np.dstack([labels, binarylabels]).squeeze(), axis=1).astype(int)
+    if config.wavelets:
+        features = np.load(open(featuresfile.replace("crwfeatures","crwfeatures_wwvt"), "rb"))
+    print("loaded features from featuresfile")
+    plotallfeatures(features, labels=labels, filedetails=filedetails)
     plotalllcs(X, labels, filedetails=filedetails)
+    print("done")
+    return
     hpfX = savehpflcs(X=X, choosechip=choosechip, order=3, window=101, diagnostic_plots=True)    
     
 
@@ -72,13 +79,24 @@ if __name__ == "__main__":
                     action="store_false", dest="silent", default=True,
                     help="don't print status messages to stdout")
 
+
     args = parser.parse_args()
     silent = args.silent
     choosechip =  args.choosechip
+    if choosechip is None: 
+        choosechip = config.choosechip
     runsdir = args.runsdir
+    if runsdir is None: 
+        runsdir = config.runsdir
     thisfilter = args.filter
+    if thisfilter is None: 
+        thisfilter = config.thisfilter
     run = args.run
+    if run is None: 
+        run = config.run
     datetime = args.datetime
+    if datetime is None: 
+        datetime = config.datetime
             
     
     print(f"launchpipeline({choosechip}, {runsdir}, {thisfilter}, {run}, {datetime}, {silent})")

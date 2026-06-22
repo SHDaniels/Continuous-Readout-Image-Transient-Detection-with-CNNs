@@ -10,7 +10,7 @@ import gc
 import resource
 from utils import *
 
-
+### saves individual lightcurves into an aggregate csv file with common dateteim, field (referred to as run) CCD (referred to as chip) and filter. This saves Input Output operations
 
 def getchiplcv(choosechip = None, runsdir = None,
                thisfilter = None, run = None,
@@ -81,7 +81,8 @@ def getchiplcv(choosechip = None, runsdir = None,
             #sys.exit()
             #print(_.shape)
             #print(lcv.split("_")[7])
-            _["sector"]=lcv.split("_")[-4]
+            _["sequence"]=lcv.split("_")[-4]
+            _["amp"]=lcv.split("_")[-3]
             _["x"]=lcv.split("_")[-2]
             _["y"]=lcv.split("_")[-1].strip(".csv")
             dfs.append(_)  # Just add to list (no copying)
@@ -90,7 +91,7 @@ def getchiplcv(choosechip = None, runsdir = None,
         df = pd.concat(dfs, ignore_index=True)
 
         df.to_csv(f"{chipfilename}", index=None)
-        print(f"csv fifle printed to {chipfilename}")
+        print(f"csv file printed to {chipfilename}")
 
 
 if __name__ == "__main__":

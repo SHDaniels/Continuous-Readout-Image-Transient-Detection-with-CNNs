@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
 
     else:
-        for i in allparams.index:
+        for i in allparams.index[:2]:
             chip = allparams.loc[i, "chip"].replace("c","")
             run  = allparams.loc[i, "run"]
             filt = allparams.loc[i, "filter"]

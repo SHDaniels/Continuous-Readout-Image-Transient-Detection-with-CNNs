@@ -16,6 +16,7 @@ import sys
 import os
 import pandas as pd
 
+from utils import getfromlcvname
 from utils import hpf
 
 class QuickReview:
@@ -153,15 +154,8 @@ def reviewlabels(filename=None,
   for i,lcv in enumerate(lcvslist):
 
     print(f"\n\n{lcv}\n\n")
-    pieces = lcv.split(".")[0].split("_")
-    datetime = pieces[2]
-    run = pieces[3]
-    thisfilter= pieces[4]
-    choosechip = pieces[5].replace("c","")
-    seq = int(pieces[7])
+    datetime, run, thisfilter, choosechip, seq, x, y, a = getfromlcvname(lightcurve)
 
-    x = int(pieces[9])
-    y = int(pieces[10])
     print(choosechip, thisfilter, run,datetime, x, y)
     #choosechip, run, thisfilter, datetime = lcv.split("_")                        
     #lightcurve_ztf_20221020141806_000686_zi_c14_x_0003_4_0708_0764.csv'           
