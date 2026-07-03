@@ -1673,7 +1673,12 @@ def get_tot_csv(
         lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
         df_row = df.loc[index]
         lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+'.csv'
-    
+        
+    if lcfpath == '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_pos/lightcurves_pos/':
+         lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'._'+str(df_row['quad'])+'.npy'+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+".csv"
+    elif lcfpath == '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_neg/lightcurves_neg/':
+         lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'._'+str(df_row['quad'])+'.npy'+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+".csv"
+            
     if lcfpath==None:
         lcfpath = '/lustre/lrspec/ZTF_data/lightcurves/1020/'  
     lc_df = pd.read_csv(lcfpath + lc_filename)
@@ -3337,17 +3342,35 @@ def get_snr_dimmest(tot, aggrows):
     '''
     newwid = 10
     #check within newwid on each side, if there is more than 
-    if int(np.min(aggrows))>10: #fixing iissues when too close to sides
+    # if int(np.min(aggrows))>10: #fixing iissues when too close to sides
+    #     lowerlim = int(np.min(aggrows))
+    # else:
+    #     lowerlim = 10
+    #     if lowerlim + (2*newwid) > int(np.max(aggrows)):
+    #         upperlim = lowerlim+2*newwid
+    # if int(np.max(aggrows))<3070:
+    #     upperlim = int(np.max(aggrows))
+    # else:
+    #     upperlim = 3070
+    
+    
+    if int(np.min(aggrows))>10: #fixing issues when too close to sides
         lowerlim = int(np.min(aggrows))
+        if int(np.max(aggrows))<3070:
+            upperlim = int(np.max(aggrows))
+        else:
+            upperlim = 3070
     else:
         lowerlim = 10
-    if int(np.max(aggrows))<3070:
-        upperlim = int(np.max(aggrows))
-    else:
-        upperlim = 3070
+        upperlim = int(np.max(np.hstack([np.max(aggrows), 11])))
+        
+#     lowerlim = int(np.min(aggrows))
+#     upperlim = int(np.max(aggrows))
+        
+    
     tallest_index = np.argmin(tot[lowerlim - newwid : upperlim + newwid])
     # print("tallest_index, ", tallest_index)
-    tallest_index_absolute = tallest_index+(int(np.min(aggrows)) - newwid)
+    tallest_index_absolute = tallest_index+(lowerlim - newwid)
     
     #get bounds for measureing the noise
     leftestleft, rightestleft, leftestright, rightestright = tallest_index_absolute - 200 - newwid,tallest_index_absolute - 100 - newwid, tallest_index_absolute + 100 + newwid,  tallest_index_absolute + 200 + newwid
@@ -3414,16 +3437,23 @@ def get_snr_brightest(tot, aggrows):
     #check within newwid on each side, if there is more than 
     if int(np.min(aggrows))>10: #fixing iissues when too close to sides
         lowerlim = int(np.min(aggrows))
+        if int(np.max(aggrows))<3070:
+            upperlim = int(np.max(aggrows))
+        else:
+            upperlim = 3070
     else:
         lowerlim = 10
-    if int(np.max(aggrows))<3070:
-        upperlim = int(np.max(aggrows))
-    else:
-        upperlim = 3070
-    tallest_index = np.argmax(tot[lowerlim - newwid : upperlim + newwid])
-    # print("tallest_index, ", tallest_index)
-    tallest_index_absolute = tallest_index+(int(np.min(aggrows)) - newwid)
+        upperlim = int(np.max(np.hstack([np.max(aggrows), 11])))
     
+    # lowerlim = int(np.min(aggrows))
+    # upperlim = int(np.max(aggrows))
+    
+    # print("lower, newwid, upper: ", lowerlim, newwid, upperlim)
+    tallest_index = np.argmax(tot[lowerlim - newwid : upperlim + newwid])
+    # print("tallest_index", tallest_index)
+    # print("tallest_index, ", tallest_index)
+    tallest_index_absolute = tallest_index+(lowerlim - newwid)
+    # print("tallest_index_absolute", tallest_index_absolute)
     #get bounds for measureing the noise
     leftestleft, rightestleft, leftestright, rightestright = tallest_index_absolute - 200 - newwid,tallest_index_absolute - 100 - newwid, tallest_index_absolute + 100 + newwid,  tallest_index_absolute + 200 + newwid
     bounds = np.array([leftestleft, rightestleft, leftestright, rightestright])
@@ -3475,7 +3505,7 @@ def get_snr_brightest(tot, aggrows):
 
 
 
-def add_snr_both(olddf):
+def add_snr_both(olddf, lcfpath='/lustre/lrspec/ZTF_data/lightcurves/1020/'):
     '''
     add pos and neg integrated snrs
     returns the dataframe with new columns for outputs of
@@ -3496,7 +3526,7 @@ def add_snr_both(olddf):
     for filename, filenamegroup in df.groupby('filename'):  
         for quad, quadgroup in filenamegroup.groupby('quad'):
             for closest_x, closest_xgroup in quadgroup.groupby('closest_x'): #which light curve it is
-                tot, maxcols = get_tot_csv(df, closest_xgroup.index[0]) #will be the same for all so just using the first
+                tot, maxcols = get_tot_csv(df, closest_xgroup.index[0], lcfpath=lcfpath) #will be the same for all so just using the first
                 for index in closest_xgroup.index:
                     # row = int(df.loc[index, "row_from_nn"]) + wid
                     aggrows = df.loc[index, "original_rows_from_nn"] + wid
@@ -3508,7 +3538,7 @@ def add_snr_both(olddf):
                     df.loc[index, column_names_dimming] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute]
     return df            
 
-def plot_small_multiples_lcs(df, concat, titlecol='index'):
+def plot_small_multiples_lcs(df, concat, titlecol='index', show_transient=True):
     wid = 10
     figcols = 3
     figrows = 1 + len(df) // figcols
@@ -3524,8 +3554,10 @@ def plot_small_multiples_lcs(df, concat, titlecol='index'):
                     ax[i,j].set_title(str(df.iloc[index][titlecol]))
                 ax[i,j].plot(tot, '.', ms=2)
                 ax[i,j].set_xticks([])
-                
-                
+                ax[i,j].set_yticks([])
+                if show_transient==True:
+                    ax[i,j].plot(tot[int(df.iloc[index]['central_point'])-10:int(df.iloc[index]['central_point'])+10], '.', ms=2)
+                #np.arange(int(df.iloc[index]['central_point'])-10,int(df.iloc[index]['central_point']+10)),
                 
 def add_band(df):
     band = []
@@ -3537,7 +3569,7 @@ def add_band(df):
 
 
 
-def add_snr_both_filtered_hap2(olddf):
+def add_snr_both_filtered_hap2(olddf, lcfpath):
     '''
     add pos and neg integrated snrs
     returns the dataframe with new columns for outputs of
@@ -3562,10 +3594,14 @@ def add_snr_both_filtered_hap2(olddf):
     for col in column_names_dimming:
         df[col] = np.zeros(len(df))
     for filename, filenamegroup in df.groupby('filename'):  
+        # print(filename)
         for quad, quadgroup in filenamegroup.groupby('quad'):
+            # print(quad)
             for closest_x, closest_xgroup in quadgroup.groupby('closest_x'): #which light curve it is
                 # print(len(closest_xgroup))
-                tot = get_tot_csv_filtered_hap2(df, closest_xgroup.index[0]) #will be the same for all so just using the first
+                # try:
+                tot = get_tot_csv_filtered_hap2(df, closest_xgroup.index[0], lcfpath=lcfpath) #will be the same for all so just using the first
+                
                 # print(tot)
                 # if len(closest_xgroup)>1: #breaks if not enough FIX THIS
                 for index in closest_xgroup.index:
@@ -3582,6 +3618,8 @@ def add_snr_both_filtered_hap2(olddf):
                     #now dimming
                     snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute = get_snr_dimmest(tot, aggrows)                    
                     df.loc[index, column_names_dimming] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute]
+                # except:
+                #     print('having some problems...',filename)
 
     return df      
 
@@ -3605,7 +3643,11 @@ def get_tot_csv_filtered_hap2(
         lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
         df_row = df.loc[index]
         lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+"_filtered_hap2.csv"
-    
+    if lcfpath == '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_pos/lightcurves_pos_filtered/':
+         lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'._'+str(df_row['quad'])+'.npy'+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+"_filtered_hap2.csv"
+    elif lcfpath == '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_neg/lightcurves_neg_filtered/':
+         lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'._'+str(df_row['quad'])+'.npy'+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+"_filtered_hap2.csv"
+       
     # if lcfpath==None:
     #     lcfpath = '/lustre/lrspec/ZTF_data/lightcurves/1020/'  
     lc_df = pd.read_csv(lcfpath + lc_filename)
@@ -3617,7 +3659,7 @@ def get_tot_csv_filtered_hap2(
 
 
 
-def add_snr_both_filtered_hap3(olddf):
+def add_snr_both_filtered_hap3(olddf, lcfpath='/lustre/lrspec/ZTF_data/lightcurves/1020_filtered/' ):
     '''
     add pos and neg integrated snrs
     returns the dataframe with new columns for outputs of
@@ -3645,7 +3687,7 @@ def add_snr_both_filtered_hap3(olddf):
         for quad, quadgroup in filenamegroup.groupby('quad'):
             for closest_x, closest_xgroup in quadgroup.groupby('closest_x'): #which light curve it is
                 # print(len(closest_xgroup))
-                tot = get_tot_csv_filtered_hap3(df, closest_xgroup.index[0]) #will be the same for all so just using the first
+                tot = get_tot_csv_filtered_hap3(df, closest_xgroup.index[0], lcfpath=lcfpath) #will be the same for all so just using the first
                 # print(tot)
                 # if len(closest_xgroup)>1: #breaks if not enough FIX THIS
                 for index in closest_xgroup.index:
@@ -3685,7 +3727,12 @@ def get_tot_csv_filtered_hap3(
         lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
         df_row = df.loc[index]
         lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+"_filtered_hap3.csv"
-    
+    if lcfpath == '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_pos/lightcurves_pos_filtered/':
+         lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'._'+str(df_row['quad'])+'.npy'+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+"_filtered_hap3.csv"
+    elif lcfpath == '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_neg/lightcurves_neg_filtered/':
+         lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'._'+str(df_row['quad'])+'.npy'+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+"_filtered_hap3.csv"
+       
+     
     # if lcfpath==None:
     #     lcfpath = '/lustre/lrspec/ZTF_data/lightcurves/1020/'  
     lc_df = pd.read_csv(lcfpath + lc_filename)
@@ -3819,25 +3866,31 @@ def add_rf_lightcurves(concat, predictions_file='/lustre/lrspec/ZTF_data/random_
     add predictions from random forest as df column
     '''
     df = concat.copy()
-    predictions = pd.read_csv(predictions_file, names=['filename', 'rf'])
-    for i, df_row in df.iterrows():
-        lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quadrant'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+'.csv'
-        matching_row = predictions[predictions['filename']==lc_filename]
-        # print(lc_filename)
-        # print(matching_row['rf'].values[0])
-        if len(matching_row)==1:
-            df.loc[i, 'random_forest_result']=matching_row['rf'].values[0]
-            # print('found it')
-        elif len(matching_row)==0:
-            # concat.loc[i, 'random_forest_result']=None #actually can just leave this as a NaN
-            
-            print('didnt find it')
-            print(matching_row)
-        else:
-            
-            print('something strange is happening...')
-            print(matching_row)
-            print(len(matching_row))
+    if predictions_file=='/lustre/lrspec/ZTF_data/random_forest_training/predictions_reupdated.csv': 
+        predictions = pd.read_csv(predictions_file, names=['filename', 'binary', 'rf'])
+    else:
+        predictions = pd.read_csv(predictions_file, names=['filename', 'rf'])
+    for filename, group in df.groupby('filename'):     
+        for quadnum, quadgroup in group.groupby('quadrant'):
+            for starx, stargroup in quadgroup.groupby('closest_x'):
+                lc_filename = 'lightcurve_'+filename[:-1]+'_'+str(quadnum)+'_'+f'{int(starx):04}'+'_'+f'{int(stargroup.iloc[0]["closest_y"]):04}'+'.csv'
+                # lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quadrant'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+'.csv'
+                matching_row = predictions[predictions['filename']==lc_filename]
+                # print(lc_filename)
+                # print(matching_row['rf'].values[0])
+                if len(matching_row)==1:
+                    df.loc[stargroup.index,'random_forest_result']=matching_row['rf'].values[0]
+                    # print('found it')
+                elif len(matching_row)==0:
+                    # concat.loc[i, 'random_forest_result']=None #actually can just leave this as a NaN
+                    
+                    print('didnt find it')
+                    print(matching_row)
+                else:
+                    
+                    print('something strange is happening...')
+                    print(matching_row)
+                    print(len(matching_row))
     
     return df
 

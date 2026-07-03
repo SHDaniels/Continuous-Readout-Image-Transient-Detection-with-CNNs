@@ -21,8 +21,34 @@ def hpf(x, y, plot=False):
 
 
 
-folder_path = "/lustre/lrspec/ZTF_data/lightcurves/1020/"
-save_path = '/lustre/lrspec/ZTF_data/lightcurves/1020_filtered/'
+# folder_path = "/lustre/lrspec/ZTF_data/lightcurves/1020/"
+# save_path = '/lustre/lrspec/ZTF_data/lightcurves/1020_filtered/'
+
+
+
+# # # List all the files in the folder
+# files = [f for f in os.listdir(folder_path)]  # Adjust this to your file format
+# for file in files:
+#     newname2 = save_path + file[:-4]+"_filtered_hap2.csv"
+#     newname3 = save_path + file[:-4]+"_filtered_hap3.csv"
+#     if not os.path.exists(newname2):
+#         try:
+#             lc = pd.read_csv(folder_path+file)
+#             filtered2 = hpf(lc.index.values, lc['flux_hap_2'], plot=False)
+#             filtered3 = hpf(lc.index.values, lc['flux_hap_3'], plot=False)
+        
+#             filtered2.to_csv(newname2)
+#             filtered3.to_csv(newname3)
+#             del lc, filtered2, filtered3, newname2, newname3
+#             gc.collect()
+#         except:
+#             print("HELP HELP IM HAVING ISSUES")
+#             print(newname2)
+
+
+folder_path = '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_pos/lightcurves_pos/'
+
+save_path = '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_pos/lightcurves_pos_filtered/'
 
 
 
@@ -44,3 +70,28 @@ for file in files:
         except:
             print("HELP HELP IM HAVING ISSUES")
             print(newname2)
+            
+# folder_path = '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_neg/lightcurves_neg/'
+
+# save_path = '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_neg/lightcurves_neg_filtered/'
+
+
+
+# # # List all the files in the folder
+# files = [f for f in os.listdir(folder_path)]  # Adjust this to your file format
+# for file in files:
+#     newname2 = save_path + file[:-4]+"_filtered_hap2.csv"
+#     newname3 = save_path + file[:-4]+"_filtered_hap3.csv"
+#     if not os.path.exists(newname2):
+#         try:
+#             lc = pd.read_csv(folder_path+file)
+#             filtered2 = hpf(lc.index.values, lc['flux_hap_2'], plot=False)
+#             filtered3 = hpf(lc.index.values, lc['flux_hap_3'], plot=False)
+        
+#             filtered2.to_csv(newname2)
+#             filtered3.to_csv(newname3)
+#             del lc, filtered2, filtered3, newname2, newname3
+#             gc.collect()
+#         except:
+#             print("HELP HELP IM HAVING ISSUES")
+#             print(newname2)

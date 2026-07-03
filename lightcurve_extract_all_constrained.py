@@ -42,85 +42,85 @@ import glob
 # In[120]:
 
 
-def process_xy_positions_efficient(xy_positions, image_path, quad):
-    """
-    Efficiently process multiple x,y positions by loading the image once
+# def process_xy_positions_efficient(xy_positions, image_path, quad):
+#     """
+#     Efficiently process multiple x,y positions by loading the image once
     
-    Parameters:
-    -----------
-    xy_positions : array-like
-        Array of (x, y) coordinates, shape (N, 2)
-    image_path : str
-        Path to FITS file
-    quad : int
-        Quadrant number
-    tracking : bool
-        Whether to track streak position
-    output_csv : str
-        Output CSV filename
+#     Parameters:
+#     -----------
+#     xy_positions : array-like
+#         Array of (x, y) coordinates, shape (N, 2)
+#     image_path : str
+#         Path to FITS file
+#     quad : int
+#         Quadrant number
+#     tracking : bool
+#         Whether to track streak position
+#     output_csv : str
+#         Output CSV filename
         
-    Returns:
-    --------
-    nothing, saves light curves
-    """
-    xy_positions = np.array(xy_positions)
+#     Returns:
+#     --------
+#     nothing, saves light curves
+#     """
+#     xy_positions = np.array(xy_positions)
     
-    filename = image_path[-47:-8]
+#     filename = image_path[-47:-8]
     
-    print(f"Loading FITS file: {image_path}")
-    print(f"Processing {np.shape(xy_positions)[0]} positions...")
+#     print(f"Loading FITS file: {image_path}")
+#     print(f"Processing {np.shape(xy_positions)[0]} positions...")
     
-    # Load image once
-    try:
-        hdul = fits.open(image_path)
-        file1_array = hdul[quad].data
-        hdul.close()
+#     # Load image once
+#     try:
+#         hdul = fits.open(image_path)
+#         file1_array = hdul[quad].data
+#         hdul.close()
         
-        # Calculate background once
-        print("Calculating background...")
-        background = rff.get_image_background(file1_array)
-        imagenobackground = file1_array - background
+#         # Calculate background once
+#         print("Calculating background...")
+#         background = rff.get_image_background(file1_array)
+#         imagenobackground = file1_array - background
         
-        print(f"Image shape: {imagenobackground.shape}")
-        print(f"Background value: {background:.2f}")
+#         print(f"Image shape: {imagenobackground.shape}")
+#         print(f"Background value: {background:.2f}")
         
-    except Exception as e:
-        print(f"Error loading FITS file: {e}")
-        return None
+#     except Exception as e:
+#         print(f"Error loading FITS file: {e}")
+#         return None
     
-    # Process all positions
+#     # Process all positions
     
-    for i, (x_pos, y_pos) in enumerate(xy_positions):
-        try:
-            tot_2,tot_3,tot_4,tot_5, maxcols = get_tot_from_xy_efficient(
-                imagenobackground, int(x_pos), int(y_pos), tracking=True)
+#     for i, (x_pos, y_pos) in enumerate(xy_positions):
+#         try:
+#             tot_2,tot_3,tot_4,tot_5, maxcols = get_tot_from_xy_efficient(
+#                 imagenobackground, int(x_pos), int(y_pos), tracking=True)
             
-            # Create DataFrame for this position
-            position_df = pd.DataFrame({
-                'position_id': i,
-                'x_input': x_pos,
-                'y_input': y_pos,
-                'row_index': range(len(tot_2)),
-                'flux_hap_2': tot_2,
-                'flux_hap_3': tot_3,
-                'flux_hap_4': tot_4,
-                'flux_hap_5': tot_5,
-                'max_col': maxcols
-            })
+#             # Create DataFrame for this position
+#             position_df = pd.DataFrame({
+#                 'position_id': i,
+#                 'x_input': x_pos,
+#                 'y_input': y_pos,
+#                 'row_index': range(len(tot_2)),
+#                 'flux_hap_2': tot_2,
+#                 'flux_hap_3': tot_3,
+#                 'flux_hap_4': tot_4,
+#                 'flux_hap_5': tot_5,
+#                 'max_col': maxcols
+#             })
             
             
 
-            individual_filename = f"/lustre/lrspec/ZTF_data/lightcurves/1020/lightcurve_{filename}_{quad}_{int(x_pos):04}_{int(y_pos):04}.csv"
-            print("saving")
-            print(individual_filename)
-            position_df.to_csv(individual_filename, index=False)
+#             individual_filename = f"/lustre/lrspec/ZTF_data/lightcurves/1020/lightcurve_{filename}_{quad}_{int(x_pos):04}_{int(y_pos):04}.csv"
+#             print("saving")
+#             print(individual_filename)
+#             position_df.to_csv(individual_filename, index=False)
 
                 
-        except Exception as e:
-            print(f"Error processing position {i} ({x_pos}, {y_pos}): {e}")
-            continue
+#         except Exception as e:
+#             print(f"Error processing position {i} ({x_pos}, {y_pos}): {e}")
+#             continue
     
-    return
+#     return
 
 
 # In[125]:
@@ -307,9 +307,9 @@ def load_xy_positions_from_fits(bintable_path):
 # In[127]:
 
 
-image_directory = '/lustre/lrspec/ZTF_data/science_extractions/to_extract/1020_minus_extras/'
-xy_directory = '/lustre/lrspec/ZTF_data/corrected_coordinates/xy_arrays/'
-lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/lightcurve_'
+# image_directory = '/lustre/lrspec/ZTF_data/science_extractions/to_extract/1020_minus_extras/'
+# xy_directory = '/lustre/lrspec/ZTF_data/corrected_coordinates/xy_arrays/'
+# lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/lightcurve_'
 
 # image_files = os.listdir(image_directory)
 
@@ -341,32 +341,180 @@ lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/lightcurve_'
 #             process_xy_positions_efficient(xy_positions, image_path, quad)
 
 
-image_filename = "ztf_20221020148032_000686_zg_c01_x_0003.fits.fz"
+# image_filename = "ztf_20221020148032_000686_zg_c01_x_0003.fits.fz"
 
-image_path = os.path.join(image_directory, image_filename)
+# image_path = os.path.join(image_directory, image_filename)
 
-# Extract filename parts for bintable
-bintable_filename = image_filename[-47:-13]  
+# # Extract filename parts for bintable
+# bintable_filename = image_filename[-47:-13]  
 
-filename = image_filename[-47:-8]  
+# filename = image_filename[-47:-8]  
         
-#         # Check if lightcurve files already exist
-#         if glob.glob(lightcurve_path + filename + '*'+'_4_'+'*'):  # Fixed: use glob instead of is_file
-#             print('light curves already exist - skipping')
-#             print(lightcurve_path + filename)
-#             continue
+# #         # Check if lightcurve files already exist
+# #         if glob.glob(lightcurve_path + filename + '*'+'_4_'+'*'):  # Fixed: use glob instead of is_file
+# #             print('light curves already exist - skipping')
+# #             print(lightcurve_path + filename)
+# #             continue
         
-quad=1
-# Check if lightcurve files already exist
-# if glob.glob(lightcurve_path + filename + '*'+'_'+str(quad)+'_'+'*'):  # Fixed: use glob instead of is_file
-#     print('light curves already exist - skipping')
-#     print(lightcurve_path + filename)
-#     continue
-bintable_path = xy_directory + bintable_filename + '_' + str(quad) + '.fits'  # Fixed: removed extra str() and parenthesis
-print(bintable_path, flush=True)
-xy_positions = load_xy_positions_from_fits(bintable_path)
-print(xy_positions, flush=True)
-process_xy_positions_efficient(xy_positions, image_path, quad)
+# quad=1
+# # Check if lightcurve files already exist
+# # if glob.glob(lightcurve_path + filename + '*'+'_'+str(quad)+'_'+'*'):  # Fixed: use glob instead of is_file
+# #     print('light curves already exist - skipping')
+# #     print(lightcurve_path + filename)
+# #     continue
+# bintable_path = xy_directory + bintable_filename + '_' + str(quad) + '.fits'  # Fixed: removed extra str() and parenthesis
+# print(bintable_path, flush=True)
+# xy_positions = load_xy_positions_from_fits(bintable_path)
+# print(xy_positions, flush=True)
+# process_xy_positions_efficient(xy_positions, image_path, quad)
 
 
-# #
+# # #
+
+#for efficiency data below here
+
+
+
+
+def process_xy_positions_efficient_eff(xy_positions, image_path, image_filename, quad, lightcurve_path):
+    """
+    Efficiently process multiple x,y positions by loading the image once
+    
+    Parameters:
+    -----------
+    xy_positions : array-like
+        Array of (x, y) coordinates, shape (N, 2)
+    image_path : str
+        Path to FITS file
+    quad : int
+        Quadrant number
+    tracking : bool
+        Whether to track streak position
+    output_csv : str
+        Output CSV filename
+        
+    Returns:
+    --------
+    nothing, saves light curves
+    """
+    xy_positions = np.array(xy_positions)
+    
+    filename = image_filename
+    
+    print(f"Loading FITS file: {image_path}")
+    print(f"Processing {np.shape(xy_positions)[0]} positions...")
+    
+    # Load image once
+    try:
+        
+        file1_array = np.load(image_path)
+        
+        # Calculate background once
+        print("Calculating background...")
+        background = rff.get_image_background(file1_array)
+        imagenobackground = file1_array - background
+        
+        print(f"Image shape: {imagenobackground.shape}")
+        print(f"Background value: {background:.2f}")
+        
+    except Exception as e:
+        print(f"Error loading FITS file: {e}")
+        return None
+    
+    # Process all positions
+    
+    for i, (x_pos, y_pos) in enumerate(xy_positions):
+        try:
+            tot_2,tot_3,tot_4,tot_5, maxcols = get_tot_from_xy_efficient(
+                imagenobackground, int(x_pos), int(y_pos), tracking=True)
+            
+            # Create DataFrame for this position
+            position_df = pd.DataFrame({
+                'position_id': i,
+                'x_input': x_pos,
+                'y_input': y_pos,
+                'row_index': range(len(tot_2)),
+                'flux_hap_2': tot_2,
+                'flux_hap_3': tot_3,
+                'flux_hap_4': tot_4,
+                'flux_hap_5': tot_5,
+                'max_col': maxcols
+            })
+            
+            
+
+            individual_filename = f"{lightcurve_path}lightcurve_{filename}_{quad}_{int(x_pos):04}_{int(y_pos):04}.csv"
+            print("saving")
+            print(individual_filename)
+            position_df.to_csv(individual_filename, index=False)
+
+                
+        except Exception as e:
+            print(f"Error processing position {i} ({x_pos}, {y_pos}): {e}")
+            continue
+    
+    return
+
+
+# In[125]:
+
+
+image_directory = '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_pos/images/'
+xy_directory = '/lustre/lrspec/ZTF_data/corrected_coordinates/xy_arrays/'
+lightcurve_path = '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_pos/lightcurves_pos/'
+
+image_files = os.listdir(image_directory)
+
+for image_filename in image_files:
+    
+    if image_filename[0:3] == 'ztf': #for somet reason there were other files in here
+        # Create full path to image file
+        image_path = os.path.join(image_directory, image_filename)
+        
+        # Extract filename parts for bintable
+        bintable_filename = image_filename[-47:-12]  
+        
+        filename = image_filename[-47:-7]  
+        
+        quad = int(image_filename[-5])
+        # for quad in range(1, 5):
+            # # Check if lightcurve files already exist
+            # if glob.glob(lightcurve_path + filename + '*'+'_'+str(quad)+'_'+'*'):  # Fixed: use glob instead of is_file
+            #     print('light curves already exist - skipping')
+            #     print(lightcurve_path + filename)
+            #     continue
+        bintable_path = xy_directory + bintable_filename + '_' + str(quad) + '.fits'  # Fixed: removed extra str() and parenthesis
+        xy_positions = load_xy_positions_from_fits(bintable_path)
+        process_xy_positions_efficient_eff(xy_positions, image_path, image_filename, quad, lightcurve_path)
+        
+        
+        
+image_directory = '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_neg/images/'
+xy_directory = '/lustre/lrspec/ZTF_data/corrected_coordinates/xy_arrays/'
+lightcurve_path = '/lustre/lrspec/ZTF_data/efficiency_testing/nosat_eff_data/full_image_implantations_neg/lightcurves_neg/'
+
+image_files = os.listdir(image_directory)
+
+for image_filename in image_files:
+    
+    if image_filename[0:3] == 'ztf': #for somet reason there were other files in here
+        # Create full path to image file
+        image_path = os.path.join(image_directory, image_filename)
+        
+        # Extract filename parts for bintable
+        bintable_filename = image_filename[-47:-12]  
+        
+        filename = image_filename[-47:-7]  
+        
+        quad = int(image_filename[-5])
+        # for quad in range(1, 5):
+            # # Check if lightcurve files already exist
+            # if glob.glob(lightcurve_path + filename + '*'+'_'+str(quad)+'_'+'*'):  # Fixed: use glob instead of is_file
+            #     print('light curves already exist - skipping')
+            #     print(lightcurve_path + filename)
+            #     continue
+        bintable_path = xy_directory + bintable_filename + '_' + str(quad) + '.fits'  # Fixed: removed extra str() and parenthesis
+        xy_positions = load_xy_positions_from_fits(bintable_path)
+        process_xy_positions_efficient_eff(xy_positions, image_path, image_filename, quad, lightcurve_path)
+        
+        
