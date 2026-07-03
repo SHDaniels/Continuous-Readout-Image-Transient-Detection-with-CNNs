@@ -250,13 +250,13 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--chip", dest="choosechip", default=None,
                     help="chip number(2 digits)")
     parser.add_argument("-d", "--runsdir", dest="runsdir", default=None,
-                    help="chip number(2 digits)")
+                    help="run directory")
     parser.add_argument("-f", "--filter", dest="filter", default=None,
-                    help="chip number(2 digits)")
+                    help="filter (2 chars")
     parser.add_argument("-r", "--run", dest="run", default=None,
-                    help="chip number(2 digits)")
+                    help="really thefield (2 digits)")
     parser.add_argument("-t", "--datetime", dest="datetime", default=None,
-                    help="chip number(2 digits)")
+                    help="yyyymmddhhmmss (2 digits)")
     parser.add_argument("-q", "--quiet",
                     action="store_false", dest="silent", default=True,
                     help="don't print status messages to stdout")
