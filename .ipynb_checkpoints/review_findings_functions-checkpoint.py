@@ -1050,6 +1050,8 @@ def plot_lc_from_csv_with_transient_df_plotly(lc_filename, df=None, rowindex=Non
     fluxerr = np.sqrt(tot / 6.2 + 8.5**2)  # 6.2 electrons per photon, read noise is 8.5
     time_points = np.arange(len(tot))
     
+
+    
     # Create the main plot
     fig = go.Figure()
     
@@ -1152,12 +1154,30 @@ def plot_lc_from_csv_with_transient_df_plotly(lc_filename, df=None, rowindex=Non
     fig.add_trace(go.Scatter(
         x=time_points,
         y=tot,
-        error_y=dict(type='data', color='rgba(0,0,0,0.5)',array=fluxerr, visible=True,width=0),
+        error_y=dict(type='data', color='rgba(0,0,255,0.5)',array=fluxerr, visible=True,width=0),
         mode='markers',
         marker=dict(size=3, color='black', opacity=0.3),
-        name='Shot Noise',
+        name='Unfiltered (error: shot noise)',
         hovertemplate='<b>Time:</b> %{x}<br><b>Flux:</b> %{y:.2f}<br><b>Error:</b> %{error_y.array:.2f}<extra></extra>'
     ))
+    
+    if hap==2:
+        lightcurve_path_filtered = '/lustre/lrspec/ZTF_data/lightcurves/1020_filtered/'  
+        lc_df_filtered = pd.read_csv(lightcurve_path_filtered + 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+"_filtered_hap2.csv")
+        
+        # Calculate flux and error
+        tot_filtered = lc_df_filtered['flux_hap_'+str(hap)]
+        fluxerr_filtered = np.sqrt(tot_filtered / 6.2 + 8.5**2) 
+    
+        fig.add_trace(go.Scatter(
+            x=time_points,
+            y=tot_filtered,
+            error_y=dict(type='data', color='rgba(0,0,0,0.5)',array=fluxerr_filtered, visible=True,width=0),
+            mode='markers',
+            marker=dict(size=3, color='blue', opacity=0.3),
+            name='Filtered (error: shot noise)',
+            hovertemplate='<b>Time:</b> %{x}<br><b>Flux:</b> %{y:.2f}<br><b>Error:</b> %{error_y.array:.2f}<extra></extra>'
+        ))
     
     #maybe this will show up on top
     if old_lines==True:

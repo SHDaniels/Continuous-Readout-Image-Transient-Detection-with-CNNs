@@ -18,7 +18,7 @@ import plotly.io as pio
 
 
 
-df = pd.read_csv("/home/3155/both_cands")
+df = pd.read_csv("/home/3155/best_cands")
 
 
 
@@ -203,9 +203,12 @@ for index in df.index:
     </ul>
     <p><strong>Additional Note:</strong> Half-aperture=2 was determined to be the most reasonable aperture size (width of the streak), but a much larger aperture is shown in the second plot</p> 
     <p> because in some cases the streak spreads past the chosen aperture, causing false positives.</p>
+    <p> A high-pass filtered version of the light curve with half aperture=2 is also plotted in blue.</p>
     
-    <p><strong>Star Details:</strong> local brightening snr: {df.loc[index]['snr_local_brightening']:.3f}, global snr brightening: {df.loc[index]['snr_global_brightening']:.3f}, local dimming snr: {df.loc[index]['snr_local_dimming']:.3f}, global snr dimming: {df.loc[index]['snr_global_dimming']:.3f}, central point brightening: {df.loc[index]['central_point_brightening']:.1f}, central point dimming: {df.loc[index]['central_point_dimming']:.1f}, number of candidates in streak: {df.loc[index]['num_in_file_in_star']:.3f}</p>
-    <p><strong>FITS Quadrant:</strong> {quadrant}, row:{df.loc[index]['row_from_nn']+10}, col: {df.loc[index]['col_from_nn']+10} </p>
+    
+    <p><strong>Star Details:</strong> Type of transient (brightening (pos) or dimming (neg)): {df.loc[index]['real_type_local']}, local snr (filtered): {df.loc[index]['snr_local_filtered2']:.3f}, global snr (filtered): {df.loc[index]['snr_global_filtered2']:.3f}, local snr (unfiltered): {df.loc[index]['snr_local']:.3f}, global snr (unfiltered): {df.loc[index]['snr_global']:.3f}, central point in light curve from snr calc: {df.loc[index]['central_point']:.1f}, number of candidates in streak: {df.loc[index]['num_in_file_in_star']:.0f}</p>
+    #<p><strong>Star Details:</strong> gaia_source_id: {df.loc[index]['gaia_source_id']:.1f}, known variable: {df.loc[index]['in_vari_summary']}, band: {df.loc[index]['Band']}</p>
+    <p><strong>FITS Quadrant:</strong> {quadrant}, approximate row: {df.loc[index]['row_from_nn']+10}, approximate col: {df.loc[index]['col_from_nn']+10} </p>
     '''
     #<p><strong>Star Details:</strong> gaia_source_id: {df.loc[index]['gaia_source_id']:.1f}, known variable: {df.loc[index]['in_vari_summary']}, band: {df.loc[index]['Band']}, local snr: {df.loc[index]['snr_local']:.3f}, global snr: {df.loc[index]['snr_global']:.3f}</p>
 
