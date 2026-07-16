@@ -15,3 +15,4 @@ crw/crw/__pycache__/*
 __pycache__/
 *.pyc
 *.pyo
+suspicious_duplicates.ipynb
