@@ -18,14 +18,14 @@ import plotly.io as pio
 
 
 
-df = pd.read_csv("/home/3155/best_cands")
+df = pd.read_csv("/home/3155/best_cands_no_0029")
 
 
 
 
 def make_html_file(*figs, filename, titles=None, instructions=None,
                    fits_filename=None, fits_url_base='./fits/', image_fig_indices=None,
-                   prev_file=None, next_file=None):
+                   prev_file=None, next_file=None, zoom_image_b64=None):
     """
     Save multiple Plotly figures in one HTML file with optional FITS download and navigation
     """
@@ -63,6 +63,15 @@ def make_html_file(*figs, filename, titles=None, instructions=None,
         <div class="fits-download-section">
             <button class="fits-download-btn" onclick="downloadFits()">Download FITS</button>
             <span class="fits-filename">{fits_filename}</span>
+        </div>
+        '''
+    zoom_image_html = ""
+    if zoom_image_b64:
+        zoom_image_html = f'''
+        <div class="figure-container">
+            <div class="figure-title">Zoomed Transient Region (static)</div>
+            <img src="data:image/png;base64,{zoom_image_b64}"
+                 style="image-rendering: pixelated; border: 1px solid #ccc; max-width: 400px;" />
         </div>
         '''
     
@@ -138,6 +147,7 @@ def make_html_file(*figs, filename, titles=None, instructions=None,
 {instructions_html}
 {fits_html}
 {figure_divs}
+{zoom_image_html}
 {nav_html}
 
 <script>
@@ -237,6 +247,8 @@ for index in df.index:
     if index < df.index.max():
         next_index = index + 1
         next_file = f"cand_{next_index}_with_images.html"
+        
+    zoom_b64 = rff.plot_zoom_region_static(df, index, direcname="1020")
     
     make_html_file(
         fig_1, fig_2, fig_5, 
@@ -244,9 +256,10 @@ for index in df.index:
         instructions=instructions_html,
         fits_filename=fits_file,
         fits_url_base='../fits_files/',
-        image_fig_indices=[2],  # Only figure 3 (index 2) gets download/contrast controls
+        image_fig_indices=[2],
         prev_file=prev_file,
-        next_file=next_file
+        next_file=next_file,
+        zoom_image_b64=zoom_b64
     )
     
 #     fig_1 = rff.plot_lc_from_csv_with_transient_df_plotly(None, df, index, hap=2, old_lines=False)

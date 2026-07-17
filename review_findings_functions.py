@@ -1536,6 +1536,7 @@ def plot_whole_image_plotly(
     fname = df.loc[index]["filename"] + "fits.fz"
     row = int(df.loc[index]["row_from_nn"]) + 10
     col = int(df.loc[index]["col_from_nn"]) + 10
+    real_row = int(df.loc[index]["central_point"]) #need to check this is row and not col
     quad = int(df.loc[index]["quadrant"])
     column = int(col)
     
@@ -1580,8 +1581,8 @@ def plot_whole_image_plotly(
     
     # Add square outline showing the "upper mid" zoomed region
     # This corresponds to the region shown in your original upper mid plot
-    zoom_x_min = row - 20
-    zoom_x_max = row + 20
+    zoom_x_min = real_row - 20
+    zoom_x_max = real_row + 20
     zoom_y_min = column - 20
     zoom_y_max = column + 20
     
@@ -1674,6 +1675,84 @@ def plot_whole_image_plotly(
     
     return fig
 
+import io
+import base64
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+def plot_zoom_region_static(df, index, direcname="1020", dpi=100, pad=20,
+                             target_width=1300, target_height=300):
+    """
+    Renders just the zoomed-in transient region as a static PNG (base64-encoded),
+    stretched horizontally to roughly match the whole-image plot's footprint,
+    with a colorbar and axis-bounds label.
+
+    Returns:
+        base64 string (no "data:image/png;base64," prefix), or None on failure.
+    """
+    fname = df.loc[index]["filename"] + "fits.fz"
+    real_row = int(df.loc[index]["central_point"])
+    quad = int(df.loc[index]["quadrant"])
+    column = int(df.loc[index]["col_from_nn"]) + 10
+
+    fpath = "/lustre/lrspec/ZTF_data/2022/1020/"
+    path = fpath + fname
+
+    try:
+        hdul = fits.open(path)
+        file1_array = hdul[quad].data
+        hdul.close()
+    except Exception as e:
+        print(f"Error loading image: {e}")
+        return None
+
+    sqrt_image = np.sqrt(file1_array).T
+
+    # Same region math as plot_whole_image_plotly
+    x_min, x_max = real_row - pad, real_row + pad
+    y_min, y_max = column - pad, column + pad
+
+    # Clip to array bounds
+    y_min_c = max(y_min, 0)
+    y_max_c = min(y_max, sqrt_image.shape[0])
+    x_min_c = max(x_min, 0)
+    x_max_c = min(x_max, sqrt_image.shape[1])
+
+    crop = sqrt_image[y_min_c:y_max_c, x_min_c:x_max_c]
+
+    if crop.size == 0:
+        print("Empty crop region")
+        return None
+
+    zmin = float(np.nanmin(crop))
+    zmax = float(np.nanmax(crop))
+
+    fig, ax = plt.subplots(figsize=(target_width / dpi, target_height / dpi), dpi=dpi)
+
+    im = ax.imshow(
+        crop, cmap='gray', vmin=zmin, vmax=zmax,
+        origin='lower', aspect='auto',
+        extent=[x_min_c, x_max_c, y_min_c, y_max_c]  # keep real coord labels on axes
+    )
+    ax.set_xlabel("col")
+    ax.set_ylabel("row")
+
+    cbar = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
+    cbar.set_label("sqrt(counts)")
+
+    bounds_text = f"xmin={x_min}, xmax={x_max}, ymin={y_min}, ymax={y_max}"
+    ax.set_title(bounds_text, fontsize=10)
+
+    fig.tight_layout()
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=dpi)
+    plt.close(fig)
+
+    buf.seek(0)
+    b64 = base64.b64encode(buf.read()).decode('utf-8')
+    return b64
 
 def get_tot_csv(
     df,
