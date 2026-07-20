@@ -71,10 +71,10 @@ def make_html_file(*figs, filename, titles=None, instructions=None,
         <div class="figure-container">
             <div class="figure-title">Zoomed Transient Region (static)</div>
             <img src="data:image/png;base64,{zoom_image_b64}"
-                 style="image-rendering: pixelated; border: 1px solid #ccc; max-width: 400px;" />
+                 style="width: 100%; max-width: 1300px; border: 1px solid #ccc;" />
         </div>
         '''
-    
+        
     # Prepare figure divs
     figure_divs = ""
     for i, (fig, title) in enumerate(zip(figs, titles)):
@@ -146,8 +146,8 @@ def make_html_file(*figs, filename, titles=None, instructions=None,
 {nav_html}
 {instructions_html}
 {fits_html}
-{figure_divs}
 {zoom_image_html}
+{figure_divs}
 {nav_html}
 
 <script>
