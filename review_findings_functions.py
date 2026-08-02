@@ -123,7 +123,7 @@ def get_sobel_ratio(stamp):
     return sobel_ratio, Lx, Ly
 
 
-def get_stamp_from_df(index, df, direcname="2022/1020/", norm=True, quad=None, addrow=0, addcol=0, iloc=False,imgsize=10):
+def get_stamp_from_df(index, df, direcname="2022/1020/", norm=True, quad=None, addrow=0, addcol=0, iloc=False,imgsize=10, center='central_point'):
     """
     returns a 20x20 numpy array of brightnesses centered around the detection
     located at index of dataframe df
@@ -135,12 +135,16 @@ def get_stamp_from_df(index, df, direcname="2022/1020/", norm=True, quad=None, a
         fname = df.loc[index]["filename"] + "fits.fz"
         row = int(df.loc[index]["row_from_nn"]) + 10 + addrow
         col = int(df.loc[index]["col_from_nn"]) + 10 + addcol
+        if center=='central_point':
+            row = int(df.loc[index]["central_point"]) + addrow
         if quad==None:
             quad = int(df.loc[index]["quadrant"])
     elif iloc==True:
         fname = df.iloc[index]["filename"] + "fits.fz"
         row = int(df.iloc[index]["row_from_nn"]) + 10 + addrow
         col = int(df.iloc[index]["col_from_nn"]) + 10 + addcol
+        if center=='central_point':
+            row = int(df.iloc[index]["central_point"])  + addrow
         if quad==None:
             quad = int(df.iloc[index]["quadrant"])        
     # if direcname == "0820":
@@ -162,7 +166,7 @@ def get_stamp_from_df(index, df, direcname="2022/1020/", norm=True, quad=None, a
         background = get_image_background(normalized)
         return stamp, background
         
-    stamp = file1_array[row - 10 : row + 10, col - 10 : col + 10]
+    stamp = file1_array[row - imgsize : row + imgsize, col - imgsize : col + imgsize]
     # plt.imshow(stamp)
     # plt.colorbar()
     background = get_image_background(file1_array)
@@ -1157,16 +1161,17 @@ def plot_lc_from_csv_with_transient_df_plotly(lc_filename, df=None, rowindex=Non
         error_y=dict(type='data', color='rgba(0,0,255,0.5)',array=fluxerr, visible=True,width=0),
         mode='markers',
         marker=dict(size=3, color='black', opacity=0.3),
-        name='Unfiltered (error: shot noise)',
+        name='Original (error: shot noise)',
         hovertemplate='<b>Time:</b> %{x}<br><b>Flux:</b> %{y:.2f}<br><b>Error:</b> %{error_y.array:.2f}<extra></extra>'
     ))
     
     if hap==2:
-        lightcurve_path_filtered = '/lustre/lrspec/ZTF_data/lightcurves/1020_filtered/'  
-        lc_df_filtered = pd.read_csv(lightcurve_path_filtered + 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+"_filtered_hap2.csv")
+        # lightcurve_path_filtered = '/lustre/lrspec/ZTF_data/lightcurves/1020_filtered/'  
+        # lc_df_filtered = pd.read_csv(lightcurve_path_filtered + 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quad'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+"_filtered_hap2.csv")
+        tot_filtered = get_tot_denoised(df, rowindex)
         
         # Calculate flux and error
-        tot_filtered = lc_df_filtered['flux_hap_'+str(hap)]
+        # tot_filtered = lc_df_filtered['flux_hap_'+str(hap)]
         fluxerr_filtered = np.sqrt(tot_filtered / 6.2 + 8.5**2) 
     
         fig.add_trace(go.Scatter(
@@ -1175,7 +1180,7 @@ def plot_lc_from_csv_with_transient_df_plotly(lc_filename, df=None, rowindex=Non
             error_y=dict(type='data', color='rgba(0,0,0,0.5)',array=fluxerr_filtered, visible=True,width=0),
             mode='markers',
             marker=dict(size=3, color='blue', opacity=0.3),
-            name='Filtered (error: shot noise)',
+            name='Denoised (error: shot noise)',
             hovertemplate='<b>Time:</b> %{x}<br><b>Flux:</b> %{y:.2f}<br><b>Error:</b> %{error_y.array:.2f}<extra></extra>'
         ))
     
@@ -2375,9 +2380,9 @@ def inspect_df_w_stamp_color(df, imgsize=10, star=False, clim=None, plot="stamp"
                     ax[i, j].scatter(starpos - (col - imgsize + wid), 10)
                 if plot_centers:
                     center = df.iloc[index]['row_from_nn'] + 10
-                    ax[i, j].scatter(10, center - (row - imgsize + wid))
-                    center2 = df.iloc[index]['central_point_brightening']
-                    ax[i, j].scatter(10, center2 - (row - imgsize + wid))
+                    ax[i, j].scatter(imgsize, center - (row - imgsize + wid))
+                    center2 = df.iloc[index]['central_point']
+                    ax[i, j].scatter(imgsize, center2 - (row - imgsize + wid))
                 
                 ax[i, j].set_axis_off()
                 
@@ -3656,7 +3661,7 @@ def plot_small_multiples_lcs(df, concat, titlecol='index', show_transient=True):
         for j in range(figcols):
             index = figcols * i + j
             if index < len(df):
-                tot, maxols = get_tot_csv(concat, df.iloc[index]['concat_index_copy'])
+                tot, maxols = get_tot_csv(df, index)
                 if titlecol=='index':
                     ax[i,j].set_title(str(index))
                 else:
@@ -4220,4 +4225,204 @@ def make_brightest_lcs_array(rindex, df, number=6):
     
         
         
+def original_rows_to_array(original):
+    # array = np.zeros((20,20))
+    cleaned = original[1:-1]
     
+    # Split into rows
+    rows = []
+    current_row = []
+    
+    # Split by brackets to identify rows
+    parts = cleaned.strip().split(' ')
+    # print(parts)
+    real = []
+    for part in parts:
+        if part!='':
+            correct = float(part)
+            real.append(correct)
+    
+    real = np.array(real)
+    
+    return np.array(real)
+
+def add_snr_both_denoised(olddf):
+    '''
+    add pos and neg integrated snrs
+    returns the dataframe with new columns for outputs of
+    snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, brightest/dimmest row 
+    currently hardcoded half ap = 2
+    '''
+    wid=10
+    df = olddf.copy()
+    column_names_brightening = ['snr_local_brightening', 'snr_global_brightening', 'noise_local_brightening', 'noise_global_brightening', 
+                'local_average_outside_brightening', 'height_brightening', 'FWHM_brightening', 'signal_local_brightening', 'central_point_brightening']
+    column_names_dimming = ['snr_local_dimming', 'snr_global_dimming', 'noise_local_dimming', 'noise_global_dimming', 
+                'local_average_outside_dimming', 'height_dimming', 'FWHM_dimming', 'signal_local_dimming', 'central_point_dimming']
+    for i, name in enumerate(column_names_dimming):
+        column_names_dimming[i]=name+'_denoised'
+    column_names_brightening = np.array(column_names_brightening)
+    for i, name in enumerate(column_names_brightening):
+        column_names_brightening[i]=name+'_denoised'
+        
+    for col in column_names_brightening:
+        df[col] = np.zeros(len(df))
+    for col in column_names_dimming:
+        df[col] = np.zeros(len(df))
+    for filename, filenamegroup in df.groupby('filename'):  
+        for quad, quadgroup in filenamegroup.groupby('quad'):
+            for closest_x, closest_xgroup in quadgroup.groupby('closest_x'): #which light curve it is
+                
+                try:
+                    tot = get_tot_denoised(df, closest_xgroup.index[0]) #will be the same for all so just using the first
+                
+                    for index in closest_xgroup.index:
+                        # row = int(df.loc[index, "row_from_nn"]) + wid
+                        # print(df.loc[index, "original_rows_from_nn"].type)
+                        if type(df.loc[index, "original_rows_from_nn"] )==str:
+                            aggrows = original_rows_to_array(df.loc[index, "original_rows_from_nn"]) + wid
+                        else:
+                            aggrows = df.loc[index, "original_rows_from_nn"] + wid
+                        #first brightening
+                        # print(tot)
+                        # print(aggrows)
+                        snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute = get_snr_brightest(tot, aggrows)                    
+                        df.loc[index, column_names_brightening] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute]
+                        #now dimming
+                        snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute = get_snr_dimmest(tot, aggrows)                    
+                        df.loc[index, column_names_dimming] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute]
+                except:
+                    print("didn't work: ", filename)
+                
+    return df
+
+def get_tot_denoised(df, i, cut=True):
+    filename = 'lightcurve_'+df.loc[i, 'filename'][:-5]+'0000_'+str(df.loc[i, 'quad'])+'_'+f'{int(df.loc[i,"closest_x"]):04}'+'_'+f'{int(df.loc[i,"closest_y"]):04}'+'_time_adjusted_concat_denoised'
+    print(filename)
+    anarray = pd.read_csv('/lustre/lrspec/ZTF_data/lightcurves/1020_time_concat_denoised_rf_again/'+filename, header=None).values.flatten()
+    if cut==False:
+        return anarray
+    else:
+        number = int(df.loc[i, 'filename'][-5:-1])
+        # print(df.loc[i, 'filename'])
+        # print(number)
+        # num = 1
+        return anarray[number*3080-int(df.loc[i,"closest_y"]):(number+1)*3080-int(df.loc[i,"closest_y"])] #possibly one pixel off but should be close enough for SNR
+    
+    
+def remove_starting_edges(concat): #first 100 pixels go bye bye #which turns into 90 cause 10 already gone
+    df = concat.copy()
+    # df["concat_index_copy"] = concat.index.values
+    beginningstodrop = []
+    for index in df.index.values:
+        if df.loc[index, 'filename'][-5:]=='0000.':
+            if df.loc[index,'quad']==1 or concat.loc[index,'quad']==2:
+                if df.loc[index, 'row_from_nn']<90:
+                    beginningstodrop.append(index)
+            elif df.loc[index,'quad']==3 or concat.loc[index,'quad']==4:
+                if df.loc[index, 'row_from_nn']+10 > 2979: #it was fine before but math is hard so im checking
+                    beginningstodrop.append(index)
+        if df.loc[index, 'row_from_nn']<10: #chop off first 20 pixels
+            beginningstodrop.append(index)
+        elif df.loc[index, 'col_from_nn']<10:
+            beginningstodrop.append(index)
+        elif df.loc[index, 'col_from_nn']>3041:
+            beginningstodrop.append(index)
+        elif df.loc[index, 'row_from_nn']>3049:
+            beginningstodrop.append(index)
+    df.drop(index=np.unique(beginningstodrop), inplace=True)
+    return df#, beginningstodrop
+
+def remove_sobel(concat):
+    df = concat.copy()
+    brightening = pd.read_csv('/home/3155/sobel_ratios') #sobels for SNR>1 candidates
+    droplist = brightening[brightening['sobel_ratiocentral_point_brightening5']<=2]['index_copy'].values
+    # realdroplist = droplist[droplist in df.index.values]
+    # realdroplist = []
+    # for el in droplist:
+    #     if el in df.index.values:
+    #         realdroplist.append(el)
+    
+    # df.drop(index=np.unique(realdroplist), inplace=True)
+    to_drop = []
+    for i, row in df.iterrows():
+        if row['concat_index_copy'] in droplist:
+            to_drop.append(i)
+    print('btw we already removed some of these: ',len(droplist)-len(to_drop))
+    df.drop(to_drop, inplace=True)
+    return df
+    
+def remove_manual_sats(concat):
+    satlist = np.load("/lustre/lrspec/ZTF_data/final_satlist.npy")
+    moresats = np.array([195365, 291022, 163685, 326045, 272956, 306621, 22579, 
+            79095,262472, 293337, 298575, 154765,181844, 272947, 329013, 
+                176927, 192302, 179370, 52316, 131777, 117765, 82320, 224886, 131780,
+                         133395, 53727, 326040, 244374, 247862, 139635, 44003, 184032, 97098,
+                        183186, 52301, 139053, 152177, 124943, 131763, 52319, 265520,
+                        144297, 287498, 52302, 287496, 151735, 262444, 1408])#from filtered result
+    df = concat.copy()
+    # realdroplist = droplist[droplist in df.index.values]
+    # realdroplist = []
+    # for el in np.hstack((satlist, moresats)):
+    #     if el in df.index.values:
+    #         realdroplist.append(el)
+    # print('btw we already removed some of these: ',len(np.hstack((satlist, moresats)))-len(realdroplist))
+    # df.drop(index=np.unique(realdroplist), inplace=True)
+    
+    realdroplist = []
+    for el in np.hstack((satlist, moresats)):
+        if el in df['concat_index_copy'].values:
+            realdroplist.append(el)
+    print('btw we already removed some of these: ',len(np.hstack((satlist, moresats)))-len(realdroplist))
+    to_drop = []
+    for i, row in df.iterrows():
+        if row['concat_index_copy'] in realdroplist:
+            if row['concat_index_copy'] not in [287296, 125688, 269241, 111169]: #questionable ones
+                to_drop.append(i)
+    df.drop(to_drop, inplace=True)
+    return df
+
+def make_final_df(concat, local_or_global="local", filtered='', num=100):
+    '''
+    filtered can be _filtered2 or _f3 or just ''
+    '''
+#     df = concat.copy()
+#     df["concat_index_copy"] = concat.index.values
+#     dfs_pos = df.sort_values("snr_"+local_or_global+"_brightening"+filtered, ascending=False)[:num]
+    
+#     dfs_neg = df.sort_values("snr_"+local_or_global+"_dimming"+filtered, ascending=False)[:num]
+#     if filtered=='_filtered2':
+#         filtered='_filtere'
+#     dfs_pos['central_point']=dfs_pos['central_point_brightening'+filtered]
+#     dfs_neg['central_point']=dfs_neg['central_point_dimming'+filtered]
+#     # dfs_pos['snr'] = dfs_pos["snr_"+local_or_global+"_brightening"]
+#     # dfs_pos['real_type'] = np.full(num, "pos")
+#     # dfs_neg['snr'] = dfs_neg["snr_"+local_or_global+"_dimming"]
+#     # dfs_neg['real_type'] = np.full(num, "neg")
+#     all_df = pd.concat([dfs_pos,dfs_neg])
+#     final_df = all_df.sort_values("snr_"+local_or_global, ascending=False)[:num]
+#     print("using num pos: "+str(np.sum(final_df['real_type_'+local_or_global]=="pos")))
+#     return final_df, dfs_pos, dfs_neg
+    df = concat.copy()
+    # df["concat_index_copy"] = concat.index.values
+    df = df.sort_values("snr_"+local_or_global+filtered, ascending=False)[:num]
+    if filtered=='_filtered2':
+        filtered='_filtere'
+    for i, row in df.iterrows():
+        if row['real_type_'+local_or_global]=='pos':
+            if filtered=='_denoised':
+                df.loc[i, 'central_point'] = df.loc[i,'central_point_brightening_denoise']
+            else:
+                df.loc[i, 'central_point'] = df.loc[i,'central_point_brightening'+filtered]
+        else:
+            df.loc[i, 'central_point'] = df.loc[i,'central_point_dimming'+filtered]
+    # dfs_pos['central_point']=dfs_pos['central_point_brightening'+filtered]
+    # dfs_neg['central_point']=dfs_neg['central_point_dimming'+filtered]
+    # dfs_pos['snr'] = dfs_pos["snr_"+local_or_global+"_brightening"]
+    # dfs_pos['real_type'] = np.full(num, "pos")
+    # dfs_neg['snr'] = dfs_neg["snr_"+local_or_global+"_dimming"]
+    # dfs_neg['real_type'] = np.full(num, "neg")
+    # all_df = pd.concat([dfs_pos,dfs_neg])
+    # final_df = all_df.sort_values("snr_"+local_or_global, ascending=False)[:num]
+    print("using num pos: "+str(np.sum(df['real_type_'+local_or_global]=="pos")))
+    return df #, dfs_pos, dfs_neg
