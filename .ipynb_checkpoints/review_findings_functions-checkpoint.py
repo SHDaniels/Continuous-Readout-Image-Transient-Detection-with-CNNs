@@ -1045,7 +1045,8 @@ def plot_lc_from_csv_with_transient_df_plotly(lc_filename, df=None, rowindex=Non
         df_row = df.loc[rowindex]
         lc_filename = 'lightcurve_'+df_row['filename'][:-1]+'_'+str(df_row['quadrant'])+'_'+f'{int(df_row["closest_x"]):04}'+'_'+f'{int(df_row["closest_y"]):04}'+'.csv'
     
-
+    point_left = int(df.loc[rowindex, 'point_left'])
+    point_right = int(df.loc[rowindex, 'point_right'])
     lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'  
     lc_df = pd.read_csv(lightcurve_path + lc_filename)
     
@@ -1109,18 +1110,18 @@ def plot_lc_from_csv_with_transient_df_plotly(lc_filename, df=None, rowindex=Non
             
             # Highlight the data points around the transient
             if highlight==True:
-                if row_num - 9 >= 0 and row_num + 9 < len(tot):
-                    highlight_x = time_points[row_num - 9 : row_num + 9]
-                    highlight_y = tot[row_num - 9 : row_num + 9]
-                    
-                    fig.add_trace(go.Scatter(
-                        x=highlight_x,
-                        y=highlight_y,
-                        mode='markers',
-                        marker=dict(size=8, color='white', line=dict(color='black', width=1)),
-                        showlegend=False,
-                        hovertemplate='<b>Transient Candidate</b><br><b>Time:</b> %{x}<br><b>Flux:</b> %{y:.2f}<extra></extra>'
-                    ))
+                # if row_num - 9 >= 0 and row_num + 9 < len(tot):
+                highlight_x = time_points[point_left : point_right]
+                highlight_y = tot[point_left : point_right]
+                
+                fig.add_trace(go.Scatter(
+                    x=highlight_x,
+                    y=highlight_y,
+                    mode='markers',
+                    marker=dict(size=8, color='white', line=dict(color='black', width=1)),
+                    showlegend=False,
+                    hovertemplate='<b>Transient Candidate</b><br><b>Time:</b> %{x}<br><b>Flux:</b> %{y:.2f}<extra></extra>'
+                ))
     
 
     
@@ -1158,10 +1159,10 @@ def plot_lc_from_csv_with_transient_df_plotly(lc_filename, df=None, rowindex=Non
     fig.add_trace(go.Scatter(
         x=time_points,
         y=tot,
-        error_y=dict(type='data', color='rgba(0,0,255,0.5)',array=fluxerr, visible=True,width=0),
+        error_y=dict(type='data', color='rgba(0,0,0,0.5)',array=fluxerr, visible=True,width=0),
         mode='markers',
         marker=dict(size=3, color='black', opacity=0.3),
-        name='Original (error: shot noise)',
+        name='Original (error: shot noise) (black)',
         hovertemplate='<b>Time:</b> %{x}<br><b>Flux:</b> %{y:.2f}<br><b>Error:</b> %{error_y.array:.2f}<extra></extra>'
     ))
     
@@ -1177,10 +1178,10 @@ def plot_lc_from_csv_with_transient_df_plotly(lc_filename, df=None, rowindex=Non
         fig.add_trace(go.Scatter(
             x=time_points,
             y=tot_filtered,
-            error_y=dict(type='data', color='rgba(0,0,0,0.5)',array=fluxerr_filtered, visible=True,width=0),
+            error_y=dict(type='data', color='rgba(0,0,255,0.5)',array=fluxerr_filtered, visible=True,width=0),
             mode='markers',
             marker=dict(size=3, color='blue', opacity=0.3),
-            name='Denoised (error: shot noise)',
+            name='Denoised (error: shot noise) (blue)',
             hovertemplate='<b>Time:</b> %{x}<br><b>Flux:</b> %{y:.2f}<br><b>Error:</b> %{error_y.array:.2f}<extra></extra>'
         ))
     
@@ -1189,8 +1190,8 @@ def plot_lc_from_csv_with_transient_df_plotly(lc_filename, df=None, rowindex=Non
         add_transient_lines(df_last, colors['remains'], "Remaining transient candidate", fig, highlight=True)
     else:
         if int(df_row['row_from_nn']) + 10 - 9 >= 0 and int(df_row['row_from_nn']) + 10 + 9 < len(tot):
-                    highlight_x = time_points[int(df_row['row_from_nn']) + 10 - 9 : int(df_row['row_from_nn']) + 10 + 9]
-                    highlight_y = tot[int(df_row['row_from_nn']) + 10 - 9 : int(df_row['row_from_nn']) + 10 + 9]
+                    highlight_x = time_points[point_left : point_right]
+                    highlight_y = tot[point_left : point_right]
                     
                     fig.add_trace(go.Scatter(
                         x=highlight_x,
@@ -1544,6 +1545,8 @@ def plot_whole_image_plotly(
     real_row = int(df.loc[index]["central_point"]) #need to check this is row and not col
     quad = int(df.loc[index]["quadrant"])
     column = int(col)
+    point_left = int(df.loc[index, 'point_left'])
+    point_right = int(df.loc[index, 'point_right'])
     
     # Load the image (same as original)
     fpath = (
@@ -1584,10 +1587,9 @@ def plot_whole_image_plotly(
         hovertemplate='<b>X:</b> %{x}<br><b>Y:</b> %{y}<br><b>Intensity:</b> %{z:.2f}<extra></extra>'
     ))
     
-    # Add square outline showing the "upper mid" zoomed region
-    # This corresponds to the region shown in your original upper mid plot
-    zoom_x_min = real_row - 20
-    zoom_x_max = real_row + 20
+    # Add outline around the transient
+    zoom_x_min = point_left
+    zoom_x_max = point_right
     zoom_y_min = column - 20
     zoom_y_max = column + 20
     
@@ -1605,7 +1607,7 @@ def plot_whole_image_plotly(
     fig.add_annotation(
         x=zoom_x_max,
         y=zoom_y_max,
-        text="Transient area",
+        text="Transient",
         showarrow=True,
         arrowhead=2,
         arrowsize=1,
@@ -2626,11 +2628,11 @@ def match_stars_eff(df):
     for index, rrow in df.iterrows():
         quad = str(rrow['quad_from_implant'])
         # print(df.loc[index,'filename'][:35])
-        xy_file = xy_path+rrow['filename'][:35]+quad+".fits"
+        # xy_file = xy_path+rrow['filename'][:35]+quad+".fits"
         # print(xy_file)
         with fits.open(xy_file) as hdul_xy:
-            col = rrow["col_from_implant"]
-            target_x = col
+            therow = rrow["row_from_implant"] #this had col before!! 8.14.26
+            target_x = therow
             # print(xy_file)
             data = hdul_xy[1].data  
             stored_x = data["X"][:25]  # Column "X"
@@ -3512,6 +3514,8 @@ def get_snr_dimmest(tot, aggrows):
     # print(half_max)
     # print(local_average_outside)
     window_minus_average = tot_subtracted[row - left_index : row + right_index]
+    point_left = row - left_index
+    point_right = row + right_index
     FWHM = len(window_minus_average)
     # print(window_minus_average)
     integrated_window = np.sum(window_minus_average)
@@ -3530,7 +3534,7 @@ def get_snr_dimmest(tot, aggrows):
 
     snr_local = signal_local/noise_local
     snr_global = signal_local/noise_global
-    return snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute
+    return snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute, point_left, point_right
 
 
 def get_snr_brightest(tot, aggrows):
@@ -3595,6 +3599,8 @@ def get_snr_brightest(tot, aggrows):
     # print(local_average_outside)
     window_minus_average = tot_subtracted[row - left_index : row + right_index ] #want to include the rightmost point
     # print(window_minus_average)
+    point_left = row - left_index
+    point_right = row + right_index
     FWHM = len(window_minus_average)
     
     integrated_window = np.sum(window_minus_average)
@@ -3613,7 +3619,7 @@ def get_snr_brightest(tot, aggrows):
 
     snr_local = signal_local/noise_local
     snr_global = signal_local/noise_global
-    return snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute
+    return snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute, point_left, point_right
 
 
 
@@ -4256,9 +4262,9 @@ def add_snr_both_denoised(olddf):
     wid=10
     df = olddf.copy()
     column_names_brightening = ['snr_local_brightening', 'snr_global_brightening', 'noise_local_brightening', 'noise_global_brightening', 
-                'local_average_outside_brightening', 'height_brightening', 'FWHM_brightening', 'signal_local_brightening', 'central_point_brightening']
+                'local_average_outside_brightening', 'height_brightening', 'FWHM_brightening', 'signal_local_brightening', 'central_point_brightening','point_left_brightening', 'point_right_brightening']
     column_names_dimming = ['snr_local_dimming', 'snr_global_dimming', 'noise_local_dimming', 'noise_global_dimming', 
-                'local_average_outside_dimming', 'height_dimming', 'FWHM_dimming', 'signal_local_dimming', 'central_point_dimming']
+                'local_average_outside_dimming', 'height_dimming', 'FWHM_dimming', 'signal_local_dimming', 'central_point_dimming', 'point_left_dimming', 'point_right_dimming']
     for i, name in enumerate(column_names_dimming):
         column_names_dimming[i]=name+'_denoised'
     column_names_brightening = np.array(column_names_brightening)
@@ -4273,7 +4279,7 @@ def add_snr_both_denoised(olddf):
         for quad, quadgroup in filenamegroup.groupby('quad'):
             for closest_x, closest_xgroup in quadgroup.groupby('closest_x'): #which light curve it is
                 
-                try:
+                # try:
                     tot = get_tot_denoised(df, closest_xgroup.index[0]) #will be the same for all so just using the first
                 
                     for index in closest_xgroup.index:
@@ -4286,13 +4292,13 @@ def add_snr_both_denoised(olddf):
                         #first brightening
                         # print(tot)
                         # print(aggrows)
-                        snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute = get_snr_brightest(tot, aggrows)                    
-                        df.loc[index, column_names_brightening] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute]
+                        snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute, point_left, point_right = get_snr_brightest(tot, aggrows)                    
+                        df.loc[index, column_names_brightening] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute, point_left, point_right]
                         #now dimming
-                        snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute = get_snr_dimmest(tot, aggrows)                    
-                        df.loc[index, column_names_dimming] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute]
-                except:
-                    print("didn't work: ", filename)
+                        snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute, point_left, point_right = get_snr_dimmest(tot, aggrows)                    
+                        df.loc[index, column_names_dimming] = [snr_local, snr_global, noise_local, noise_global, local_average_outside, height, FWHM, signal_local, tallest_index_absolute, point_left, point_right]
+                # except:
+                #     print("didn't work: ", filename)
                 
     return df
 
