@@ -72,8 +72,7 @@ folder_path = "/lustre/lrspec/ZTF_data/science_extractions/1020april26/average/"
 transients_count_diffcut = 0
 transients_count_diffcut_nosize1 = 0
 # # List all the files in the folder
-files = [f for f in os.listdir(folder_path) if f.endswith('diffcut5')] 
-
+files = [f for f in os.listdir(folder_path) if f.endswith('diffcut5')and not(f.endswith('29._0_alllist_matched_diffcut5') or f.endswith('29._1_alllist_matched_diffcut5') or f.endswith('29._3_alllist_matched_diffcut5') or f.endswith('29._4_alllist_matched_diffcut5'))] 
 for file in files:
     #figure out whether it's in the random forest
     df = pd.read_csv(folder_path+file)
@@ -107,10 +106,6 @@ for file in files:
 print("transients_count_diffcut, transients_count_diffcut_nosize1 ", transients_count_diffcut, transients_count_diffcut_nosize1)    
 
 
-# In[25]:
-
-
-print("transients_count_diffcut, transients_count_diffcut_nosize1 ", transients_count_diffcut, transients_count_diffcut_nosize1)    
 
 
 # In[26]:
@@ -123,7 +118,7 @@ folder_path = "/lustre/lrspec/ZTF_data/science_extractions/1020april26/average/"
 transients_count_dedup = 0
 # transients_count_diffcut_nosize1 = 0
 # # List all the files in the folder
-files = [f for f in os.listdir(folder_path) if f.endswith('dedup')] 
+files = [f for f in os.listdir(folder_path) if f.endswith('dedup') and not(f.endswith('29._0_alllist_matched_diffcut5_size1_dedup') or f.endswith('29._1_alllist_matched_diffcut5_size1_dedup') or f.endswith('29._3_alllist_matched_diffcut5_size1_dedup') or f.endswith('29._4_alllist_matched_diffcut5_size1_dedup'))]  
 
 for file in files:
     #figure out whether it's in the random forest
@@ -157,20 +152,9 @@ for file in files:
 print("transients_count_dedup", transients_count_dedup)    
 
 
-# In[27]:
-
-
-print("transients_count_dedup", transients_count_dedup)    
-
 
 # In[29]:
 
 
-np.save('/home/3155/counts.npy', np.array([pixels_count, transients_count, transients_count_diffcut, transients_count_diffcut_nosize1, transients_count_dedup]))
-
-
-# In[30]:
-
-
-np.load('/home/3155/counts.npy')
+np.save('/home/3155/counts.npy', np.array([transients_count_diffcut, transients_count_diffcut_nosize1, transients_count_dedup]))
 

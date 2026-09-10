@@ -13,6 +13,8 @@ import get_postage_stamps as gpsf
 from sklearn.metrics import ConfusionMatrixDisplay
 import seaborn as sns
 from matplotlib.colors import LinearSegmentedColormap
+from astropy.wcs import WCS
+
 
 def getdf(direcname):
     """
@@ -4432,3 +4434,256 @@ def make_final_df(concat, local_or_global="local", filtered='', num=100):
     # final_df = all_df.sort_values("snr_"+local_or_global, ascending=False)[:num]
     print("using num pos: "+str(np.sum(df['real_type_'+local_or_global]=="pos")))
     return df #, dfs_pos, dfs_neg
+
+
+
+def plot_lcs_simultaneous_with_spatial(rindex, indices, df, time_adjusted=True, hap=2,
+                                        xmin=None, xmax=None, zoom=None,
+                                        use_snr_center=True, number=6):
+    '''
+    Plots the primary transient candidate light curve, all simultaneously-flagged
+    event LCs (highlighted with blue-ring markers), and the `number` spatially
+    nearest stars on each side (by x-position, pulled from the xy_arrays FITS
+    file since most aren't transient candidates in df). Skips neighbors whose
+    curve doesn't overlap the primary's highlighted time window, continuing to
+    further neighbors until `number` valid ones are found per side.
+    Stars with x < primary are plotted ABOVE, x >= primary plotted BELOW.
+    Each curve is annotated at the left edge with its x-distance from the
+    primary candidate's closest_x (signed, with left/right direction).
+    hap: half aperture for light curve, allowable from 2 to 5
+    number: how many spatial neighbors to plot on EACH side
+    '''
+    fig, ax = plt.subplots(figsize=(20, 15))
+    lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+
+    def get_row_num(df_row):
+        row_num = int(df_row['row_from_nn']) + 10
+        if use_snr_center:
+            if df_row['real_type_local'] == 'pos':
+                row_num = int(df_row['central_point_brightening'])
+            elif df_row['real_type_local'] == 'neg':
+                row_num = int(df_row['central_point_dimming'])
+        return row_num
+
+    def load_lc(df_row):
+        lc_filename = (
+            'lightcurve_' + df_row['filename'][:-1] + '_' +
+            str(df_row['quadrant']) + '_' +
+            f'{int(df_row["closest_x"]):04}' + '_' +
+            f'{int(df_row["closest_y"]):04}' + '.csv'
+        )
+        return pd.read_csv(lightcurve_path + lc_filename)
+
+    def make_distance_label(x_val):
+        diff = x_val - primary_x
+        direction = "right" if diff >= 0 else "left"
+        return f"{diff:+.0f} px {direction}"
+
+    def annotate_distance(label, offset, ax):
+        ax.annotate(
+            label,
+            xy=(0, -offset),
+            xycoords=("axes fraction", "data"),
+            xytext=(5, 0),
+            textcoords="offset points",
+            ha="left", va="center",
+            fontsize=9, color="dimgray",
+            annotation_clip=False
+        )
+
+    def plot_lc_from_row(df_row, offset, ax, highlight=False, is_primary=False,
+                      label=None):
+        lc_df = load_lc(df_row)
+        timeseries = lc_df['flux_hap_' + str(hap)][2:]
+        ts_min, ts_max = np.min(timeseries), np.max(timeseries)
+        tot = (timeseries - ts_min) / (ts_max - ts_min) - offset
+        
+        fluxerr = np.sqrt(timeseries / 6.2 + 8.5**2) / (ts_max - ts_min)
+        remove = int(df_row["closest_y"]) if time_adjusted else 0
+        row_num = get_row_num(df_row)
+        x = np.arange(len(tot))
+        _plot_curve(x, tot, fluxerr, remove, row_num, ax, highlight, is_primary)
+        if label is not None:
+            annotate_distance(label, offset, ax)
+        return remove, row_num
+
+    def plot_lc_from_array(timeseries, y_pos, offset, ax, label=None):
+        timeseries = np.asarray(timeseries)[2:]
+        ts_min, ts_max = np.min(timeseries), np.max(timeseries)
+        tot = (timeseries - ts_min) / (ts_max - ts_min) - offset
+        
+        fluxerr = np.sqrt(timeseries / 6.2 + 8.5**2) / (ts_max - ts_min)
+        remove = int(y_pos) if time_adjusted else 0
+        x = np.arange(len(tot))
+        _plot_curve(x, tot, fluxerr, remove, None, ax, highlight=False, is_primary=False)
+        if label is not None:
+            annotate_distance(label, offset, ax)
+
+    def _plot_curve(x, tot, fluxerr, remove, row_num, ax, highlight, is_primary):
+        ax.errorbar(
+            x - remove, tot, yerr=fluxerr,
+            color="black", ecolor="black",
+            linestyle="none", marker=".", alpha=0.4
+        )
+        if highlight and row_num is not None:
+            ax.plot(
+                x[row_num - 9: row_num + 9] - remove,
+                tot[row_num - 9: row_num + 9],
+                color="white", linestyle="none", marker=".",
+                markersize=7, markeredgecolor="blue", zorder=10
+            )
+        if is_primary and row_num is not None:
+            ax.axvline(row_num - remove, alpha=0.5)
+            ax.plot(
+                x[row_num - 9: row_num + 9] - remove,
+                tot[row_num - 9: row_num + 9],
+                color="white", linestyle="none", marker=".",
+                markersize=7, markeredgecolor="red", zorder=10
+            )
+
+    # --- Primary LC ---
+    primary_row = df.loc[rindex]
+    primary_x = primary_row['closest_x']
+    primary_remove, primary_row_num = plot_lc_from_row(
+        primary_row, offset=0, ax=ax, is_primary=True
+    )
+
+    # --- Simultaneous event LCs (split by side) ---
+    simul_indices = [s for s in indices if s != rindex]
+    simul_above = sorted(
+        [s for s in simul_indices if df.loc[s, 'closest_x'] < primary_x],
+        key=lambda s: primary_x - df.loc[s, 'closest_x']
+    )
+    simul_below = sorted(
+        [s for s in simul_indices if df.loc[s, 'closest_x'] >= primary_x],
+        key=lambda s: df.loc[s, 'closest_x'] - primary_x
+    )
+
+    for rank, sidx in enumerate(simul_above):
+        x_val = df.loc[sidx, 'closest_x']
+        plot_lc_from_row(df.loc[sidx], offset=-(rank + 1) * 1.5, ax=ax,
+                          highlight=True, label=make_distance_label(x_val))
+    for rank, sidx in enumerate(simul_below):
+        x_val = df.loc[sidx, 'closest_x']
+        plot_lc_from_row(df.loc[sidx], offset=(rank + 1) * 1.5, ax=ax,
+                          highlight=True, label=make_distance_label(x_val))
+
+    n_simul_above = len(simul_above)
+    n_simul_below = len(simul_below)
+
+    # --- Spatial neighbor LCs from FITS array ---
+    exclude_positions = {
+        (int(df.loc[s, 'closest_x']), int(df.loc[s, 'closest_y'])) for s in simul_indices
+    }
+    target_window = (
+        primary_row_num - 9 - primary_remove,
+        primary_row_num + 9 - primary_remove
+    )
+    left_lcs, right_lcs = make_nearest_lcs_array(
+        rindex, df, primary_x, target_window, number=number,
+        exclude_positions=exclude_positions, time_adjusted=time_adjusted
+    )
+    # Need x-positions of the chosen neighbors for labels; recompute alongside
+    # by re-deriving from y/x pairing already filtered in make_nearest_lcs_array.
+    # Simplest: have make_nearest_lcs_array also return x positions.
+
+    for j, (lc, y_pos, x_pos) in enumerate(left_lcs):
+        offset = -(n_simul_above + j + 1) * 1.5
+        plot_lc_from_array(lc, y_pos, offset, ax, label=make_distance_label(x_pos))
+
+    for j, (lc, y_pos, x_pos) in enumerate(right_lcs):
+        offset = (n_simul_below + j + 1) * 1.5
+        plot_lc_from_array(lc, y_pos, offset, ax, label=make_distance_label(x_pos))
+
+    # --- Labels / limits ---
+    title_tag = "with" if time_adjusted else "with NOT"
+    ax.set_title(
+        f"Lightcurve {title_tag} time adjusted for star position {rindex}",
+        fontsize=20
+    )
+    ax.set_ylabel("Flux (scaled)", fontsize=11)
+    ax.set_xlim(xmin, xmax)
+    if zoom is not None:
+        ax.set_xlim(
+            primary_row_num - zoom - primary_remove,
+            primary_row_num + zoom - primary_remove
+        )
+    fig.show()
+    
+    
+    
+def make_nearest_lcs_array(rindex, df, primary_x, target_window, number=6,
+                            exclude_positions=None, time_adjusted=True):
+    '''
+    Same as before, but returns (lc, y, x) tuples per neighbor so callers
+    can label each curve with its distance from the primary.
+    '''
+    hap = 2
+    lightcurve_path = '/lustre/lrspec/ZTF_data/lightcurves/1020/'
+    df_row = df.loc[rindex]
+    image_filename = df_row['filename']
+    quad = df_row['quadrant']
+
+    xy_file = ("/lustre/lrspec/ZTF_data/corrected_coordinates/xy_arrays/" +
+               image_filename[:-6] + "_" + str(quad) + ".fits")
+
+    try:
+        with fits.open(xy_file) as hdul_xy:
+            data = hdul_xy[1].data
+            stored_x = data["X"]
+            stored_y = data["Y"]
+    except Exception:
+        print("ISSUES")
+        return [], []
+
+    if exclude_positions is None:
+        exclude_positions = set()
+    exclude_positions = set(exclude_positions) | {
+        (int(df_row["closest_x"]), int(df_row["closest_y"]))
+    }
+
+    candidates = []
+    for index in range(len(stored_x)):
+        x_val, y_val = int(stored_x[index]), int(stored_y[index])
+        if (x_val, y_val) in exclude_positions:
+            continue
+        candidates.append((x_val, y_val, abs(x_val - primary_x)))
+
+    left_candidates = sorted(
+        [c for c in candidates if c[0] < primary_x], key=lambda c: c[2]
+    )
+    right_candidates = sorted(
+        [c for c in candidates if c[0] >= primary_x], key=lambda c: c[2]
+    )
+
+    def curve_overlaps_window(n_points, remove):
+        lo, hi = -remove, n_points - 1 - remove
+        target_lo, target_hi = target_window
+        return hi >= target_lo and lo <= target_hi
+
+    def load_curves_until_n(cand_list, n_needed):
+        results = []
+        for x_val, y_val, _ in cand_list:
+            if len(results) >= n_needed:
+                break
+            lightcurve_name = (
+                'lightcurve_' + df_row['filename'][:-1] + '_' +
+                str(df_row['quadrant']) + '_' +
+                f'{x_val:04}' + '_' + f'{y_val:04}' + '.csv'
+            )
+            print(lightcurve_name)
+            try:
+                lc_df = pd.read_csv(lightcurve_path + lightcurve_name)
+            except FileNotFoundError:
+                continue
+            timeseries = lc_df['flux_hap_' + str(hap)].values
+            remove = int(y_val) if time_adjusted else 0
+            if not curve_overlaps_window(len(timeseries), remove):
+                continue
+            results.append((timeseries, y_val, x_val))
+        return results
+
+    left_results = load_curves_until_n(left_candidates, number)
+    right_results = load_curves_until_n(right_candidates, number)
+
+    return left_results, right_results
