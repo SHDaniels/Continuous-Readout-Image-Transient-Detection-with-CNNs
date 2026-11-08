@@ -2630,7 +2630,7 @@ def match_stars_eff(df):
     for index, rrow in df.iterrows():
         quad = str(rrow['quad_from_implant'])
         # print(df.loc[index,'filename'][:35])
-        # xy_file = xy_path+rrow['filename'][:35]+quad+".fits"
+        xy_file = xy_path+rrow['filename'][:35]+quad+".fits"
         # print(xy_file)
         with fits.open(xy_file) as hdul_xy:
             therow = rrow["row_from_implant"] #this had col before!! 8.14.26
@@ -3086,7 +3086,7 @@ def inspect_stamp_and_all_maps(df, index, eff=True, posneg=None, size=10, column
     fig.colorbar(imj, orientation='horizontal')
     plt.show()
     
-def show_confusion_matrix(save_name, sats=False, label_pred_te=None, targ_te=None, folds=False, title=None, absolute=False, mask=None):
+def show_confusion_matrix(save_name, sats=False, label_pred_te=None, targ_te=None, folds=False, title=None, absolute=False, mask=None, root='/home/3155/'):
     foldses = ["0","1","2","3","4"]
     if absolute==False:
         tonorm="true"
@@ -3098,21 +3098,21 @@ def show_confusion_matrix(save_name, sats=False, label_pred_te=None, targ_te=Non
     else:
         display_labels=["Background", "  Brightening", "Dimming", "Cosmic Ray", "Streak"]
     if type(targ_te)!=np.ndarray:
-        targ_te = np.load("/home/3155/saved_loss/targ_te_"+save_name+".npy")
+        targ_te = np.load(root+"saved_loss/targ_te_"+save_name+".npy")
     if 1==1: #too lazy to de-indent
         print("loading data")
         if folds!=True:
             if type(label_pred_te)!=np.ndarray:
                 if type(folds)==int:
-                    label_pred_te = np.load("/home/3155/saved_loss/label_pred_te_"+save_name+"_fold_"+str(folds)+".npy")
+                    label_pred_te = np.load(root+"saved_loss/label_pred_te_"+save_name+"_fold_"+str(folds)+".npy")
                 elif folds=='average':
                     label_pred_tes = []
                     for fold in foldses:
-                        label_pred_tes.append(np.load("/home/3155/saved_loss/label_pred_te_"+save_name+"_fold_"+str(fold)+".npy"))
+                        label_pred_tes.append(np.load(root+"saved_loss/label_pred_te_"+save_name+"_fold_"+str(fold)+".npy"))
                     label_pred_te = np.average(np.array(label_pred_tes),axis=0)
                                               
                 else:
-                    label_pred_te = np.load("/home/3155/saved_loss/label_pred_te_"+save_name+".npy")
+                    label_pred_te = np.load(root+"saved_loss/label_pred_te_"+save_name+".npy")
             if 1==1:
                     if type(mask)==np.ndarray:
                         label_pred_te = label_pred_te[mask]
@@ -3143,7 +3143,7 @@ def show_confusion_matrix(save_name, sats=False, label_pred_te=None, targ_te=Non
                     plt.show()
         elif folds==True:
             for fold in foldses:
-                label_pred_te = np.load("/home/3155/saved_loss/label_pred_te_"+save_name+"_fold_"+fold+".npy")
+                label_pred_te = np.load(root+"/saved_loss/label_pred_te_"+save_name+"_fold_"+fold+".npy")
                 if type(mask)==np.ndarray:
                         label_pred_te = label_pred_te[mask]
                         targ_te = targ_te[mask]
@@ -3204,7 +3204,7 @@ def show_confusion_matrix(save_name, sats=False, label_pred_te=None, targ_te=Non
    
 
 
-def heatmap(save_name, folds=False, color1='thistle', color2='grey',tlight='white', tdark='black'):
+def heatmap(save_name, folds=False, color1='thistle', color2='grey',tlight='white', tdark='black', root='/lustre/lrspec/ZTF_data/'):
     # Define your two endpoint colors
     color_low  = color2   # for negative values
     color_high = color1   #paleturquoise    # for positive values
@@ -3213,23 +3213,23 @@ def heatmap(save_name, folds=False, color1='thistle', color2='grey',tlight='whit
     colors = [color_low , color_high]
     my_cmap = LinearSegmentedColormap.from_list('my_diverging', colors)
 
-    our_feat_te = np.load("/lustre/lrspec/ZTF_data/saved_loss/our_feat_te_"+save_name+".npy")
-    our_bness_te = np.load("/lustre/lrspec/ZTF_data/saved_loss/our_bness_te_"+save_name+".npy")
-    our_lens_te = np.load("/lustre/lrspec/ZTF_data/saved_loss/our_lens_te_"+save_name+".npy")
+    our_feat_te = np.load(root+"saved_loss/our_feat_te_"+save_name+".npy")
+    our_bness_te = np.load(root+"saved_loss/our_bness_te_"+save_name+".npy")
+    our_lens_te = np.load(root+"saved_loss/our_lens_te_"+save_name+".npy")
 
-    our_targ_te = np.load("/lustre/lrspec/ZTF_data/saved_loss/our_targ_te_"+save_name+".npy") 
-    targ_te = np.load("/lustre/lrspec/ZTF_data/saved_loss/targ_te_"+save_name+".npy") 
+    our_targ_te = np.load(root+"saved_loss/our_targ_te_"+save_name+".npy") 
+    targ_te = np.load(root+"saved_loss/targ_te_"+save_name+".npy") 
     if folds==False:
-        our_pred_te_max = np.load("/lustre/lrspec/ZTF_data/saved_loss/our_pred_te_max_"+save_name+".npy")
+        our_pred_te_max = np.load(root+"saved_loss/our_pred_te_max_"+save_name+".npy")
     else:
         #can't determine the max until i average predictions
         foldses = ["0","1","2","3","4"]
         label_pred_tes = []
         for fold in foldses:
-            label_pred_tes.append(np.load("/lustre/lrspec/ZTF_data/saved_loss/label_pred_te_"+save_name+"_fold_"+str(fold)+".npy"))
+            label_pred_tes.append(np.load(root+"saved_loss/label_pred_te_"+save_name+"_fold_"+str(fold)+".npy"))
         label_pred_te = np.average(np.array(label_pred_tes),axis=0)
         # print(label_pred_te.shape)
-        targ_te = np.load('/lustre/lrspec/ZTF_data/saved_loss/targ_te_'+save_name+'.npy')
+        targ_te = np.load(root+'saved_loss/targ_te_'+save_name+'.npy')
         mask = np.sum(([targ_te==2],[targ_te==1]), axis=0)[0]
         # print(mask)
         
