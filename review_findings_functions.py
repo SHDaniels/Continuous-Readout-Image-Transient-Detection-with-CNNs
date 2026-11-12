@@ -3315,11 +3315,12 @@ def heatmap(save_name, folds=False, color1='thistle', color2='grey',tlight='whit
         annot=False,
         vmin=0,
         vmax=1,
+        cbar_kws={'label': 'Efficiency'}
     )
 
     # Setting the bottom axis label
     ax = plt.gca()  # Get the current axis
-    ax.set_xlabel("Transient Duration $\sigma$ (milliseconds)", fontsize=18)  # Bottom label
+    ax.set_xlabel("Transient Duration $w$ (milliseconds)", fontsize=18)  # Bottom label
     ax.xaxis.set_label_position("bottom")  # Ensure the label is positioned at the bottom
     ax.xaxis.tick_bottom()  # Ensure the ticks are at the bottom
 
@@ -3334,7 +3335,7 @@ def heatmap(save_name, folds=False, color1='thistle', color2='grey',tlight='whit
     ax_top.set_xticks(np.arange(len(length_values)) + 0.5)  # Set tick positions for top
     ax_top.set_xticklabels(top_tick_labels, fontsize=13)  # Set custom labels for top
     ax_top.set_xlabel(
-        "Transient Duration $\sigma$ (pixels)", fontsize=18, labelpad=10
+        "Transient Duration $w$ (pixels)", fontsize=18, labelpad=10
     )  # Top label
 
     # Setting y-axis label and title
@@ -3382,7 +3383,12 @@ def heatmap(save_name, folds=False, color1='thistle', color2='grey',tlight='whit
 
     # Access the colorbar and modify tick font size
     cbar = heatmap.collections[0].colorbar  # Access the colorbar
-    cbar.ax.tick_params(labelsize=13)  # Adjust tick label size
+    cbar.ax.tick_params(labelsize=13)# Adjust tick label size
+    # cbar.ax.label.set_size(13)
+    # ax = sns.heatmap(data, cbar_kws={'label': 'Accuracy %'})
+    # heatmap.figure.axes[-1].yaxis.label.set_size(20)
+    cbar.set_label("CNN Retrieval Efficiency $e_\mathrm{CNN}$", fontsize=15)
+    # cbar.label("Efficiency")
     
     
 def make_aggregated_transient_detections_df(olddf, threshold=30):
