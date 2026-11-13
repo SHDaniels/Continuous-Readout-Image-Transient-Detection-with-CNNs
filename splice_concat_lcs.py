@@ -82,6 +82,8 @@ def make_spliced_set(kind, col_tol=5, y_tol=5):
         name = f"lightcurve_{pre}_0000_{quad}_{col_s}_{y_s}_time_adjusted_concat.npy"
         try:
             arr, changed = splice_star(pre, quad, col_s, y_s, impls)
+            if os.path.islink(os.path.join(out_dir, name)):
+                os.unlink(os.path.join(out_dir, name))          # remove the symlink if it's there
             np.save(os.path.join(out_dir, name), arr)
             saved.add(name)
             changed_all.update({(name, c): n for c, n in changed.items()})
